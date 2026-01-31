@@ -2,6 +2,7 @@
 
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_1hmtu"]
 [ext_resource type="Script" uid="uid://dw6mhx26alx7a" path="res://scripts/entities/player/PlayerController.cs" id="1_635qg"]
+[ext_resource type="Script" uid="uid://cebq4pp2cocr" path="res://scenes/entities/player/GameCamera.cs" id="3_58kc7"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ybdc1"]
 height = 120.0
@@ -21,3 +22,8 @@ texture = ExtResource("1_1hmtu")
 position = Vector2(-2.9911002e-13, 110)
 rotation = 1.5707964
 shape = SubResource("CapsuleShape2D_ybdc1")
+
+[node name="GameCamera" type="Camera2D" parent="." unique_id=592137219]
+position_smoothing_enabled = true
+script = ExtResource("3_58kc7")
+MinZoom = 1.25

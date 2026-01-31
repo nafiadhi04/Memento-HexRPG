@@ -56,30 +56,40 @@ namespace MementoTest.Core
 
 		private void UpdateCursorPosition()
 		{
-			// Ambil posisi mouse
 			Vector2 mousePos = GetGlobalMousePosition();
 			Vector2I gridPos = GetGridCoordinates(mousePos);
 
-			// Validasi: Apakah tile ini valid/bisa diinjak?
-			bool isValid = IsTileWalkable(gridPos);
+			// LANGKAH 1: Cek Existensi Tile
+			// GetCellSourceId mengembalikan -1 jika tidak ada tile di koordinat tersebut (Void)
+			int sourceId = GetCellSourceId(gridPos);
 
-			if (isValid)
+			if (sourceId != -1)
 			{
+				// Jika tile ADA, kita tampilkan kursornya
 				_highlightCursor.Visible = true;
 
-				// PENTING: Pindahkan kursor ke tengah grid (Snapping)
-				Vector2 visualOffset = new Vector2(0, 7); 
+				// Pasang posisi + offset visual yang tadi kita bahas
+				Vector2 visualOffset = new Vector2(0, 7);
 				_highlightCursor.Position = GetSnappedWorldPosition(mousePos) + visualOffset;
+
+				// LANGKAH 2: Cek Walkability untuk menentukan Warna
+				if (IsTileWalkable(gridPos))
+				{
+					// AREA AMAN (Bisa Jalan) -> Warna KUNING
+					_highlightCursor.DefaultColor = new Color(1, 1, 0, 0.8f);
+				}
+				else
+				{
+					// AREA TERLARANG (Air/Tembok) -> Warna MERAH
+					_highlightCursor.DefaultColor = new Color(1, 0, 0, 0.8f);
+				}
 			}
 			else
 			{
-				// Sembunyikan jika mouse keluar map atau di atas air
+				// Jika mouse keluar dari area pulau (Void) -> Sembunyikan
 				_highlightCursor.Visible = false;
 			}
 		}
-
-		// --- FUNGSI LAMA (JANGAN DIHAPUS) ---
-
 		public Vector2 GetSnappedWorldPosition(Vector2 worldPos)
 		{
 			Vector2I mapCoords = LocalToMap(ToLocal(worldPos));
