@@ -61,7 +61,6 @@ namespace MementoTest.Core
 			Vector2I gridPos = GetGridCoordinates(mousePos);
 
 			// Validasi: Apakah tile ini valid/bisa diinjak?
-			// Kita gunakan IsTileWalkable yang sudah kita buat sebelumnya
 			bool isValid = IsTileWalkable(gridPos);
 
 			if (isValid)
@@ -69,7 +68,6 @@ namespace MementoTest.Core
 				_highlightCursor.Visible = true;
 
 				// PENTING: Pindahkan kursor ke tengah grid (Snapping)
-				// Kita gunakan fungsi GetSnappedWorldPosition yang sudah ada
 				Vector2 visualOffset = new Vector2(0, 7); 
 				_highlightCursor.Position = GetSnappedWorldPosition(mousePos) + visualOffset;
 			}
