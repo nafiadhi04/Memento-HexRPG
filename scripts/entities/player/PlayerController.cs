@@ -16,8 +16,14 @@ namespace MementoTest.Entities
 		private bool _isMoving = false;
 		private MapManager _mapManager;
 
+		private bool _canMove = true;
+
 		public override void _Ready()
 		{
+			base._Ready(); // Panggil base ready yang lama
+			var turnManager = GetParent().GetNode<TurnManager>("TurnManager");
+			turnManager.PlayerTurnStarted += () => _canMove = true;
+			turnManager.EnemyTurnStarted += () => _canMove = false;
 			// 1. Cari node MapManager
 			_mapManager = GetParent().GetNode<MapManager>("MapManager");
 
@@ -60,6 +66,7 @@ namespace MementoTest.Entities
 		}
 		public override void _Input(InputEvent @event)
 		{
+			if (!_canMove) return;
 			if (@event is InputEventMouseButton mouseEvent && mouseEvent.Pressed && mouseEvent.ButtonIndex == MouseButton.Left)
 			{
 				if (_isMoving) return; // Jangan input saat sedang jalan

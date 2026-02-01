@@ -3,6 +3,8 @@
 [ext_resource type="PackedScene" uid="uid://c0wgpf30k3hu4" path="res://scenes/entities/player/player.tscn" id="1_6312j"]
 [ext_resource type="PackedScene" uid="uid://70nlbfro38uw" path="res://scenes/environtments/map_manager.tscn" id="2_ybdc1"]
 [ext_resource type="PackedScene" uid="uid://d1rokv21p7rhx" path="res://scenes/entities/enemies/enemy.tscn" id="3_3ulyp"]
+[ext_resource type="Script" uid="uid://snokpjpkfuts" path="res://scripts/core/TurnManager.cs" id="4_q46b8"]
+[ext_resource type="PackedScene" uid="uid://8ta2vd0iv23n" path="res://scenes/ui/battle_hud.tscn" id="5_43vid"]
 
 [node name="Main Scene" type="Node2D" unique_id=1483603412]
 
@@ -14,3 +16,8 @@ ActionPoints = 100
 position = Vector2(329, 141)
 
 [node name="MapManager" parent="." unique_id=475127524 instance=ExtResource("2_ybdc1")]
+
+[node name="TurnManager" type="Node2D" parent="." unique_id=593327911]
+script = ExtResource("4_q46b8")
+
+[node name="BattleHUD" parent="." unique_id=682286073 instance=ExtResource("5_43vid")]

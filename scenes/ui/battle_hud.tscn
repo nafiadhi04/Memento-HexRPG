@@ -1,0 +1,44 @@
+[gd_scene format=3 uid="uid://8ta2vd0iv23n"]
+
+[ext_resource type="Script" uid="uid://dfdn7hnohdxr6" path="res://scripts/ui/BattleHUD.cs" id="1_dy3po"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_dy3po"]
+font_size = 32
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
+
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073]
+script = ExtResource("1_dy3po")
+
+[node name="Control" type="Control" parent="." unique_id=886510616]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="EndTurnBtn" type="Button" parent="Control" unique_id=417996157]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -90.0
+offset_top = -31.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "END TURN"
+
+[node name="TurnLabel" type="Label" parent="Control" unique_id=1822211855]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_bottom = 45.0
+grow_horizontal = 2
+text = "PLAYER PHASE"
+label_settings = SubResource("LabelSettings_dy3po")
+horizontal_alignment = 1
+vertical_alignment = 1
