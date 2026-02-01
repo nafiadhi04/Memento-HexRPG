@@ -4,7 +4,7 @@
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_yfmsl"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_essrt"]
-height = 120.0
+height = 119.999985
 
 [node name="Enemy" type="CharacterBody2D" unique_id=584458365 groups=["EnemyGroup"]]
 z_index = 1
@@ -17,6 +17,7 @@ position = Vector2(0, 60)
 texture = ExtResource("1_yfmsl")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1318861657]
-position = Vector2(1.13686824e-13, 110)
+position = Vector2(8.526506e-14, 89.99999)
 rotation = 1.5707964
+scale = Vector2(3, 1)
 shape = SubResource("CapsuleShape2D_essrt")

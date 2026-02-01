@@ -12,7 +12,7 @@ namespace MementoTest.Core
 		public TurnState CurrentTurn { get; private set; }
 
 		private BattleHUD _battleHUD;
-
+		
 		public override void _Ready()
 		{
 			if (GetParent().HasNode("BattleHUD"))
@@ -36,6 +36,12 @@ namespace MementoTest.Core
 			}
 
 			EmitSignal(SignalName.PlayerTurnStarted);
+		}
+
+		public void ForceEndPlayerTurn()
+		{
+			// Kita panggil logika yang sama dengan saat tombol ditekan
+			OnEndTurnPressed();
 		}
 
 		private void OnEndTurnPressed()
@@ -70,5 +76,7 @@ namespace MementoTest.Core
 
 			StartPlayerTurn();
 		}
+
+
 	}
 }

@@ -10,6 +10,8 @@ namespace MementoTest.Entities
 	public partial class EnemyController : CharacterBody2D
 	{
 		[Export] public float MoveDuration = 0.3f;
+		[Export] public int MaxHP = 50;
+		private int _currentHP;
 
 		// Hapus variabel Timer lama jika masih ada
 		// private Timer _moveTimer; 
@@ -29,6 +31,8 @@ namespace MementoTest.Entities
 
 		public override void _Ready()
 		{
+			base._Ready(); // Panggil base ready yang lama
+			_currentHP = MaxHP;
 			if (GetParent().HasNode("MapManager"))
 			{
 				_mapManager = GetParent().GetNode<MapManager>("MapManager");
@@ -101,6 +105,28 @@ namespace MementoTest.Entities
 
 			_currentGridPos = targetGrid;
 			_isMoving = false;
+		}
+
+		public void TakeDamage(int damage)
+		{
+			_currentHP -= damage;
+			GD.Print($"{Name} took {damage} damage! HP: {_currentHP}");
+
+			// Flash merah (Visual Feedback)
+			Modulate = Colors.Red;
+			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.2f);
+
+			if (_currentHP <= 0)
+			{
+				Die();
+			}
+		}
+
+		private void Die()
+		{
+			// Hapus dari scene
+			GD.Print($"{Name} destroyed!");
+			QueueFree();
 		}
 	}
 }

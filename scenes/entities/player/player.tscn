@@ -2,7 +2,21 @@
 
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_1hmtu"]
 [ext_resource type="Script" uid="uid://dw6mhx26alx7a" path="res://scripts/entities/player/PlayerController.cs" id="1_635qg"]
+[ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="2_nh4ur"]
 [ext_resource type="Script" uid="uid://cebq4pp2cocr" path="res://scenes/entities/player/GameCamera.cs" id="3_58kc7"]
+
+[sub_resource type="Resource" id="Resource_bjvvg"]
+script = ExtResource("2_nh4ur")
+CommandName = "attack"
+ApCost = 1
+metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
+
+[sub_resource type="Resource" id="Resource_8akj5"]
+script = ExtResource("2_nh4ur")
+CommandName = "super"
+Damage = 100
+Description = "Super attack"
+metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ybdc1"]
 height = 120.0
@@ -13,6 +27,8 @@ scale = Vector2(0.1, 0.1)
 input_pickable = true
 motion_mode = 1
 script = ExtResource("1_635qg")
+MaxAP = 100
+SkillList = Array[Object]([SubResource("Resource_bjvvg"), SubResource("Resource_8akj5")])
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=279064122]
 position = Vector2(0, 60)
