@@ -28,6 +28,8 @@ namespace MementoTest.Entities
 
 		private BattleHUD _hud;
 		private EnemyController _targetEnemy;
+		private bool _isAttacking = false;
+		private Tween _activeTween;
 
 		public override void _Ready()
 		{
@@ -116,15 +118,15 @@ namespace MementoTest.Entities
 		private async System.Threading.Tasks.Task MoveToGrid(Vector2I targetGrid)
 		{
 			_isMoving = true;
-
-			// Ubah koordinat grid menjadi posisi dunia nyata (Pixel)
 			Vector2 targetWorldPos = _mapManager.MapToLocal(targetGrid);
 
-			// Buat animasi jalan
-			Tween tween = CreateTween();
-			tween.TweenProperty(this, "global_position", targetWorldPos, 0.3f); // 0.3 detik
+			// Update bagian ini:
+			if (_activeTween != null && _activeTween.IsValid()) _activeTween.Kill();
+			_activeTween = CreateTween();
 
-			await ToSignal(tween, "finished");
+			_activeTween.TweenProperty(this, "global_position", targetWorldPos, 0.3f);
+
+			await ToSignal(_activeTween, "finished");
 
 			_currentGridPos = targetGrid;
 			_isMoving = false;
@@ -198,7 +200,8 @@ namespace MementoTest.Entities
 		// FUNGSI UTAMA: Menerima teks dari UI dan memprosesnya
 		private async void ExecuteCombatCommand(string command)
 		{
-			if (_targetEnemy == null) return;
+			// ... (pengecekan target awal tetap sama) ...
+			if (_targetEnemy == null || !GodotObject.IsInstanceValid(_targetEnemy)) return;
 
 			command = command.ToLower().Trim();
 
@@ -211,19 +214,72 @@ namespace MementoTest.Entities
 
 				if (_currentAP >= apCost)
 				{
-					// Logic Sukses
-					_currentAP -= apCost;
-					if (_hud != null) _hud.UpdateAP(_currentAP, MaxAP);
-
+					// ... (Logic AP SAMA) ...
 					_hud.LogToTerminal($"> EXECUTING '{command}'...", Colors.Green);
-					_targetEnemy.TakeDamage(damage);
 
-					// Selesaikan Sesi Combat
-					await EndCombatSession("SUCCESS: PROCESS COMPLETED.");
+					// [FIX 1] Matikan animasi jalan/gerak sebelumnya jika ada
+					if (_activeTween != null && _activeTween.IsValid())
+					{
+						_activeTween.Kill();
+						_isMoving = false; // Reset status moving
+					}
+
+					_isAttacking = true;
+
+					// [FIX 2] Debug Koordinat - Cek Output Panel nanti!
+					Vector2 originalPos = GlobalPosition;
+					Vector2 direction = GlobalPosition.DirectionTo(_targetEnemy.GlobalPosition);
+
+					float lungeDistance = 25f;
+
+					// Kita perbesar jaraknya jadi 60f biar kelihatan jelas
+					Vector2 attackPos = originalPos + (direction * lungeDistance);
+
+					GD.Print($"[DEBUG ANIM] Start: {originalPos} | Target: {attackPos} | Dist: {originalPos.DistanceTo(attackPos)}");
+
+					// [FIX 3] Simpan ke variabel _activeTween
+					float lungeDuration = 0.25f; // Sebelumnya 0.1f (Terlalu cepat)
+					float returnDuration = 0.2f; // Sebelumnya 0.15f
+
+					_activeTween = CreateTween();
+
+					// 1. MAJU (Lunge) - Lebih pelan tapi tetap bertenaga (TransitionType.Back)
+					_activeTween.TweenProperty(this, "global_position", attackPos, lungeDuration)
+						 .SetTrans(Tween.TransitionType.Back) // Efek ancang-ancang mundur dikit lalu maju
+						.SetEase(Tween.EaseType.Out);
+
+					// 2. MUNDUR (Return) - Rileks
+					_activeTween.TweenProperty(this, "global_position", originalPos, returnDuration)
+						 .SetTrans(Tween.TransitionType.Quad) // Gerakan melambat saat sampai
+						.SetEase(Tween.EaseType.Out);
+
+					// TUNGGU IMPACT
+					// Kita tunggu tepat saat animasi maju selesai (0.25 detik)
+					await ToSignal(GetTree().CreateTimer(lungeDuration), "timeout");
+
+					// --- MOMEN IMPACT (Tabrakan) ---
+					if (GodotObject.IsInstanceValid(_targetEnemy))
+					{
+						// Masukkan damage pas di sini
+						_targetEnemy.TakeDamage(damage);
+					}
+
+					// Tambahkan "Hang Time" (Diam sebentar 0.1 detik biar berasa nabraknya)
+					// Baru setelah itu biarkan animasi mundur berjalan
+					await ToSignal(GetTree().CreateTimer(0.1f), "timeout");
+
+					// Tunggu sampai seluruh rangkaian tween selesai
+					if (_activeTween != null && _activeTween.IsValid())
+					{
+						await ToSignal(_activeTween, "finished");
+					}
+
+					_isAttacking = false;
+					await EndCombatSession("SUCCESS.");
 				}
 				else
 				{
-					// AP Kurang (Tidak ganti giliran, cuma warning)
+					// ... (Logic AP kurang tetap sama) ...
 					_hud.LogToTerminal($"> ERROR: Insufficient AP. Need {apCost}.", Colors.Red);
 				}
 			}

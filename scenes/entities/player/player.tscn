@@ -2,24 +2,11 @@
 
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_1hmtu"]
 [ext_resource type="Script" uid="uid://dw6mhx26alx7a" path="res://scripts/entities/player/PlayerController.cs" id="1_635qg"]
-[ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="2_nh4ur"]
+[ext_resource type="Resource" uid="uid://berh6rqwpwj4v" path="res://resources/commands/playermovelist/punch.tres" id="2_nh4ur"]
 [ext_resource type="Script" uid="uid://cebq4pp2cocr" path="res://scenes/entities/player/GameCamera.cs" id="3_58kc7"]
 
-[sub_resource type="Resource" id="Resource_bjvvg"]
-script = ExtResource("2_nh4ur")
-CommandName = "attack"
-ApCost = 1
-metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
-
-[sub_resource type="Resource" id="Resource_8akj5"]
-script = ExtResource("2_nh4ur")
-CommandName = "super"
-Damage = 100
-Description = "Super attack"
-metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
-
-[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_ybdc1"]
-height = 120.0
+[sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nh4ur"]
+height = 119.999985
 
 [node name="Player" type="CharacterBody2D" unique_id=1206653042]
 z_index = 1
@@ -28,18 +15,19 @@ input_pickable = true
 motion_mode = 1
 script = ExtResource("1_635qg")
 MaxAP = 100
-SkillList = Array[Object]([SubResource("Resource_bjvvg"), SubResource("Resource_8akj5")])
+SkillList = Array[Object]([ExtResource("2_nh4ur")])
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=279064122]
 position = Vector2(0, 60)
 texture = ExtResource("1_1hmtu")
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=866011717]
-position = Vector2(-2.9911002e-13, 110)
-rotation = 1.5707964
-shape = SubResource("CapsuleShape2D_ybdc1")
-
 [node name="GameCamera" type="Camera2D" parent="." unique_id=592137219]
 position_smoothing_enabled = true
 script = ExtResource("3_58kc7")
 MinZoom = 1.25
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1538540715]
+position = Vector2(8.526506e-14, 89.99999)
+rotation = 1.5707964
+scale = Vector2(3, 1)
+shape = SubResource("CapsuleShape2D_nh4ur")

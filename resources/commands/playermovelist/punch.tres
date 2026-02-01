@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="PlayerSkill" format=3 uid="uid://berh6rqwpwj4v"]
+
+[ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="1_wfkoj"]
+
+[resource]
+script = ExtResource("1_wfkoj")
+CommandName = "punch"
+metadata/_custom_type_script = "uid://bj6h3te0qhxb4"

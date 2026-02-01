@@ -1,7 +1,10 @@
 using Godot;
 using System;
+using System.Linq;
 using System.Collections.Generic;
-using System.Threading.Tasks; // [WAJIB] Tambahkan baris ini agar 'Task' dikenali!
+using System.Threading.Tasks; // Wajib untuk async/await
+using MementoTest.Entities;   // Agar kenal PlayerController
+using MementoTest.Resources;  // Agar kenal EnemySkill// [WAJIB] Tambahkan baris ini agar 'Task' dikenali!
 
 using MementoTest.Core;
 
@@ -11,7 +14,9 @@ namespace MementoTest.Entities
 	{
 		[Export] public float MoveDuration = 0.3f;
 		[Export] public int MaxHP = 50;
+		[Export] public Godot.Collections.Array<EnemySkill> SkillList;
 		private int _currentHP;
+		private PlayerController _targetPlayer;
 
 		// Hapus variabel Timer lama jika masih ada
 		// private Timer _moveTimer; 
@@ -19,6 +24,7 @@ namespace MementoTest.Entities
 		private MapManager _mapManager;
 		private Vector2I _currentGridPos;
 		private bool _isMoving = false;
+		private Random _rng = new Random();
 
 		private readonly TileSet.CellNeighbor[] _hexNeighbors = {
 			TileSet.CellNeighbor.TopSide,
@@ -31,6 +37,7 @@ namespace MementoTest.Entities
 
 		public override void _Ready()
 		{
+			_currentHP = MaxHP;
 			base._Ready(); // Panggil base ready yang lama
 			_currentHP = MaxHP;
 			if (GetParent().HasNode("MapManager"))
@@ -45,6 +52,11 @@ namespace MementoTest.Entities
 			// SetupAITimer(); 
 
 			AddToGroup("Enemy");
+
+			if (GetParent().HasNode("Player"))
+			{
+				_targetPlayer = GetParent().GetNode<PlayerController>("Player");
+			}
 		}
 
 		// Fungsi ini dipanggil oleh TurnManager.cs
@@ -107,26 +119,72 @@ namespace MementoTest.Entities
 			_isMoving = false;
 		}
 
+		public async Task ExecuteTurn()
+		{
+			if (_targetPlayer == null || !GodotObject.IsInstanceValid(_targetPlayer))
+			{
+				GD.Print($"{Name}: Tidak ada target.");
+				return;
+			}
+
+			// 1. Hitung Jarak Real ke Player (Pixel)
+			float distToPlayer = GlobalPosition.DistanceTo(_targetPlayer.GlobalPosition);
+			GD.Print($"{Name} distance to player: {distToPlayer:F1}px");
+
+			// 2. AI BERPIKIR: Cari skill apa yang bisa dipakai di jarak segini?
+			// Kita filter SkillList: Ambil skill yang Range-nya >= Jarak Musuh ke Player
+			var validSkills = SkillList.Where(s => s.AttackRange >= distToPlayer).ToList();
+
+			if (validSkills.Count > 0)
+			{
+				// Kalau ada skill yang valid, pilih satu secara acak (Biar variatif)
+				int index = _rng.Next(validSkills.Count);
+				EnemySkill chosenSkill = validSkills[index];
+
+				// Lakukan serangan
+				await PerformSkill(chosenSkill);
+			}
+			else
+			{
+				// Kalau tidak ada skill yang nyampai (kejauhan)
+				GD.Print($"{Name}: Target terlalu jauh untuk semua skill. Menunggu...");
+				// (Nanti di sini kita masukkan logika Move/Jalan mendekat)
+				await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
+			}
+		}
+
+			private async Task PerformSkill(EnemySkill skill)
+		{
+			GD.Print($"{Name} menggunakan [{skill.SkillName}]!");
+
+			// 1. Animasi Maju-Mundur (Visual Effect)
+			Vector2 originalPos = GlobalPosition;
+			Vector2 direction = originalPos.DirectionTo(_targetPlayer.GlobalPosition);
+
+			// Kalau jarak dekat (melee), maju agak jauh. Kalau range, maju dikit aja.
+			float lungeDistance = (skill.AttackRange < 150) ? 30f : 10f;
+			Vector2 attackPos = originalPos + (direction * lungeDistance);
+
+			Tween tween = CreateTween();
+			tween.TweenProperty(this, "global_position", attackPos, 0.1f).SetTrans(Tween.TransitionType.Back);
+			tween.TweenProperty(this, "global_position", originalPos, 0.2f);
+
+			await ToSignal(tween, "finished");
+
+			// 2. Deal Damage sesuai Skill yang dipilih
+			_targetPlayer.TakeDamage(skill.Damage);
+		}
+
 		public void TakeDamage(int damage)
 		{
 			_currentHP -= damage;
-			GD.Print($"{Name} took {damage} damage! HP: {_currentHP}");
-
-			// Flash merah (Visual Feedback)
 			Modulate = Colors.Red;
 			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.2f);
 
 			if (_currentHP <= 0)
 			{
-				Die();
+				QueueFree();
 			}
-		}
-
-		private void Die()
-		{
-			// Hapus dari scene
-			GD.Print($"{Name} destroyed!");
-			QueueFree();
 		}
 	}
 }

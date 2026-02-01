@@ -10,7 +10,7 @@ config_version=5
 
 [application]
 
-config/name="Memento -HexRPG"
+config/name="Memento - HexRPG"
 run/main_scene="uid://dy0qtiis24i8l"
 config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
 config/icon="res://icon.svg"
