@@ -21,15 +21,16 @@ mouse_filter = 2
 
 [node name="EndTurnBtn" type="Button" parent="Control" unique_id=417996157]
 layout_mode = 1
-anchors_preset = 3
+anchors_preset = 6
 anchor_left = 1.0
-anchor_top = 1.0
+anchor_top = 0.5
 anchor_right = 1.0
-anchor_bottom = 1.0
+anchor_bottom = 0.5
 offset_left = -90.0
-offset_top = -31.0
+offset_top = -15.5
+offset_bottom = 15.5
 grow_horizontal = 0
-grow_vertical = 0
+grow_vertical = 2
 text = "END TURN"
 
 [node name="TurnLabel" type="Label" parent="Control" unique_id=1822211855]
@@ -43,30 +44,28 @@ label_settings = SubResource("LabelSettings_dy3po")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CombatPanel" type="Panel" parent="Control" unique_id=1388714615]
+[node name="CombatPanel" type="PanelContainer" parent="Control" unique_id=1592999210]
+custom_minimum_size = Vector2(0, 100)
 layout_mode = 1
-anchors_preset = 7
-anchor_left = 0.5
+anchors_preset = 12
 anchor_top = 1.0
-anchor_right = 0.5
+anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -20.0
-offset_top = -40.0
-offset_right = 20.0
+offset_top = -100.0
 grow_horizontal = 2
 grow_vertical = 0
 
 [node name="APLabel" type="Label" parent="Control/CombatPanel" unique_id=246387147]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 23.0
+layout_mode = 2
 
-[node name="CombatLog" type="RichTextLabel" parent="Control/CombatPanel" unique_id=1734370348]
-layout_mode = 0
-offset_right = 40.0
-offset_bottom = 40.0
+[node name="VBoxContainer" type="VBoxContainer" parent="Control/CombatPanel" unique_id=2133263695]
+layout_mode = 2
 
-[node name="CommandInput" type="LineEdit" parent="Control/CombatPanel" unique_id=1274233966]
-layout_mode = 0
-offset_right = 68.5
-offset_bottom = 31.0
+[node name="CombatLog" type="RichTextLabel" parent="Control/CombatPanel/VBoxContainer" unique_id=1734370348]
+layout_mode = 2
+size_flags_vertical = 3
+fit_content = true
+tab_size = 15
+
+[node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer" unique_id=1274233966]
+layout_mode = 2

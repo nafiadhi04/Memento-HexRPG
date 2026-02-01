@@ -10,12 +10,13 @@ namespace MementoTest.Entities
 {
 	public partial class PlayerController : CharacterBody2D
 	{
+		[Export] public int MaxHP = 100;
 		[Export] public int MaxAP = 10;
-
-		// --- BAGIAN BARU: LIST SKILL DI INSPECTOR ---
+		[Export] public int TypoPenaltyAP = 2;
 		[Export] public Godot.Collections.Array<PlayerSkill> SkillList;
-		// --------------------------------------------
 
+
+		private int _currentHP;
 		private MapManager _mapManager;
 		private MementoTest.Core.TurnManager _turnManager;
 		private int _currentAP;
@@ -44,6 +45,9 @@ namespace MementoTest.Entities
 					_skillDatabase[skill.CommandName.ToLower()] = (skill.ApCost, skill.Damage);
 				}
 			}
+
+			_currentHP = MaxHP;
+			GD.Print($"Player HP Initialized: {_currentHP}/{MaxHP}");
 			// -----------------------------------------------------
 
 			// Setup lainnya tetap sama...
@@ -132,6 +136,19 @@ namespace MementoTest.Entities
 
 			// Log info
 			if (_hud != null) _hud.LogToTerminal("--- SYSTEM REBOOTED. AP RESTORED. ---", Colors.Cyan);
+
+			if (_targetEnemy != null && GodotObject.IsInstanceValid(_targetEnemy))
+			{
+				// Buka Panel Combat Otomatis
+				_hud.ShowCombatPanel(true);
+				_hud.LogToTerminal($"> AUTO-RECONNECT: {_targetEnemy.Name}", Colors.Yellow);
+				_hud.LogToTerminal("> READY FOR INPUT...", Colors.White);
+			}
+			else
+			{
+				// Kalau musuh sudah mati saat giliran musuh (misal kena counter attack), reset.
+				_targetEnemy = null;
+			}
 		}
 
 		// Logic Input Mouse untuk Memilih Target
@@ -185,6 +202,7 @@ namespace MementoTest.Entities
 
 			command = command.ToLower().Trim();
 
+			// SKENARIO 1: Command Ditemukan (Sukses)
 			if (_skillDatabase.ContainsKey(command))
 			{
 				var skill = _skillDatabase[command];
@@ -193,37 +211,78 @@ namespace MementoTest.Entities
 
 				if (_currentAP >= apCost)
 				{
+					// Logic Sukses
 					_currentAP -= apCost;
 					if (_hud != null) _hud.UpdateAP(_currentAP, MaxAP);
 
 					_hud.LogToTerminal($"> EXECUTING '{command}'...", Colors.Green);
 					_targetEnemy.TakeDamage(damage);
 
-					// --- LOGIKA AUTO END TURN ---
-
-					// Tutup panel combat agar rapi
-					_hud.ShowCombatPanel(false);
-					_targetEnemy = null; // Reset target
-
-					// Beri jeda 1 detik agar player sempat baca log damagenya
-					_hud.LogToTerminal("> TERMINATING SESSION... HANDING OVER CONTROL.", Colors.Gray);
-					await ToSignal(GetTree().CreateTimer(1.0f), "timeout");
-
-					// Panggil TurnManager untuk ganti giliran
-					if (_turnManager != null)
-					{
-						_turnManager.ForceEndPlayerTurn();
-					}
+					// Selesaikan Sesi Combat
+					await EndCombatSession("SUCCESS: PROCESS COMPLETED.");
 				}
 				else
 				{
+					// AP Kurang (Tidak ganti giliran, cuma warning)
 					_hud.LogToTerminal($"> ERROR: Insufficient AP. Need {apCost}.", Colors.Red);
 				}
 			}
+			// SKENARIO 2: Typo / Command Tidak Ada (GAGAL TOTAL)
 			else
 			{
-				_hud.LogToTerminal($"> SYNTAX ERROR: Command '{command}' not found.", Colors.Red);
+				// 1. Kurangi AP sebagai denda
+				_currentAP -= TypoPenaltyAP;
+
+				// Pastikan AP tidak minus
+				if (_currentAP < 0) _currentAP = 0;
+
+				if (_hud != null) _hud.UpdateAP(_currentAP, MaxAP);
+
+				// 2. Beri pesan Error yang menyeramkan
+				_hud.LogToTerminal($"> SYNTAX ERROR: Command '{command}' unknown.", Colors.Red);
+				_hud.LogToTerminal($"> PENALTY APPLIED: -{TypoPenaltyAP} AP.", Colors.Orange);
+
+				// 3. Paksa Akhiri Giliran
+				await EndCombatSession("CRITICAL FAILURE: SYSTEM HALTED.");
 			}
+		}
+
+		// Helper Function untuk menutup sesi dan ganti giliran (Biar rapi)
+		private async System.Threading.Tasks.Task EndCombatSession(string endMessage)
+		{
+			_hud.LogToTerminal($"> {endMessage}", Colors.Gray);
+			_hud.LogToTerminal("> TERMINATING SESSION...", Colors.Gray);
+
+			await ToSignal(GetTree().CreateTimer(1.5f), "timeout");
+
+			_hud.ShowCombatPanel(false); // Panel tetap kita tutup agar bisa lihat animasi musuh
+
+			if (_turnManager != null)
+			{
+				_turnManager.ForceEndPlayerTurn();
+			}
+		}
+
+		public void TakeDamage(int damage)
+		{
+			_currentHP -= damage;
+			GD.Print($"WARNING: Player took {damage} damage! HP: {_currentHP}/{MaxHP}");
+
+			// Efek berkedip merah (Visual Feedback)
+			Modulate = Colors.Red;
+			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.2f);
+
+			if (_currentHP <= 0)
+			{
+				Die();
+			}
+		}
+
+		private void Die()
+		{
+			GD.Print("GAME OVER: SYSTEM FAILURE.");
+			
+			SetPhysicsProcess(false); // Matikan player
 		}
 	}
 }
