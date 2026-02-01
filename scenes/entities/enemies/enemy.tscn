@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://w7r8srqg76ep" path="res://scripts/entities/enemy/EnemyController.cs" id="1_essrt"]
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_yfmsl"]
 [ext_resource type="Resource" uid="uid://b5gbtl5hk1yxv" path="res://resources/commands/enemymovelist/headbutt.tres" id="2_c8ylr"]
+[ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_pm80n"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_essrt"]
 height = 119.999985
@@ -12,6 +13,7 @@ z_index = 1
 scale = Vector2(0.1, 0.1)
 script = ExtResource("1_essrt")
 SkillList = Array[Object]([ExtResource("2_c8ylr")])
+DamagePopupScene = ExtResource("3_pm80n")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=630790635]
 modulate = Color(1, 0.3, 0.3, 1)

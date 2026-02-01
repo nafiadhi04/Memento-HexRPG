@@ -4,6 +4,7 @@
 [ext_resource type="Script" uid="uid://dw6mhx26alx7a" path="res://scripts/entities/player/PlayerController.cs" id="1_635qg"]
 [ext_resource type="Resource" uid="uid://berh6rqwpwj4v" path="res://resources/commands/playermovelist/punch.tres" id="2_nh4ur"]
 [ext_resource type="Script" uid="uid://cebq4pp2cocr" path="res://scenes/entities/player/GameCamera.cs" id="3_58kc7"]
+[ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_bjvvg"]
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nh4ur"]
 height = 119.999985
@@ -16,6 +17,7 @@ motion_mode = 1
 script = ExtResource("1_635qg")
 MaxAP = 100
 SkillList = Array[Object]([ExtResource("2_nh4ur")])
+DamagePopupScene = ExtResource("3_bjvvg")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=279064122]
 position = Vector2(0, 60)

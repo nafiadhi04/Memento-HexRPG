@@ -15,6 +15,7 @@ namespace MementoTest.Entities
 		[Export] public float MoveDuration = 0.3f;
 		[Export] public int MaxHP = 50;
 		[Export] public Godot.Collections.Array<EnemySkill> SkillList;
+		[Export] public PackedScene DamagePopupScene;
 		private int _currentHP;
 		private PlayerController _targetPlayer;
 
@@ -178,12 +179,33 @@ namespace MementoTest.Entities
 		public void TakeDamage(int damage)
 		{
 			_currentHP -= damage;
+			ShowDamagePopup(damage);
 			Modulate = Colors.Red;
 			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.2f);
 
 			if (_currentHP <= 0)
 			{
 				QueueFree();
+			}
+		}
+
+		private void ShowDamagePopup(int amount)
+		{
+			if (DamagePopupScene != null)
+			{
+				// 1. Buat instance
+				var popup = DamagePopupScene.Instantiate<MementoTest.UI.DamagePopup>();
+
+				// 2. Masukkan ke scene tree (tambahkan sebagai child dari Level/Root, atau diri sendiri)
+				// Karena kita sudah set 'TopLevel = true' di script popup, jadi child diri sendiri aman.
+				AddChild(popup);
+
+				// 3. Tentukan warna (Misal: Player kena hit = Merah, Musuh kena hit = Putih/Kuning)
+				// Logika sederhana: Kalau ini script Player, warnanya Merah.
+				Color color = (this is PlayerController) ? Colors.Red : Colors.Yellow;
+
+				// 4. Jalankan animasi (Posisi muncul di atas kepala sedikit)
+				popup.SetupAndAnimate(amount, GlobalPosition + new Vector2(0, -30), color);
 			}
 		}
 	}
