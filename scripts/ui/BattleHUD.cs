@@ -7,41 +7,36 @@ namespace MementoTest.UI
 	public partial class BattleHUD : CanvasLayer
 	{
 		// --- SIGNALS ---
-		[Signal] public delegate void ReactionEndedEventHandler(bool success);
-		[Signal] public delegate void EndTurnRequestedEventHandler();
 		[Signal] public delegate void CommandSubmittedEventHandler(string commandText);
+		[Signal] public delegate void EndTurnRequestedEventHandler();
+		// (Signal ReactionEnded dihapus karena kita ganti pakai Task yang lebih canggih)
 
-		// --- EXPORT VARIABLES ---
+		// --- EXPORT UI ---
 		[Export] public Control ReactionPanel;
 		[Export] public Label ReactionPromptLabel;
 		[Export] public ProgressBar ReactionTimerBar;
 
-
-		// --- PRIVATE VARIABLES ---
+		// --- INTERNAL ---
 		private bool _isReactionPhase = false;
 		private string _expectedReactionWord = "";
 
-		// Komponen UI
-		private Button _endTurnBtn;
-		private Label _turnLabel;
+		// [KUNCI ANTI MACET] Wadah untuk menunggu hasil input player
+		private TaskCompletionSource<bool> _reactionTaskSource;
+
 		private Control _combatPanel;
-		private Label _apLabel;
-		private RichTextLabel _combatLog;
 		private LineEdit _commandInput;
+		private RichTextLabel _combatLog;
+		private Label _apLabel;
+		private Button _endTurnBtn;
 
 		public override void _Ready()
 		{
-			// Sembunyikan panel reaksi saat mulai
 			if (ReactionPanel != null) ReactionPanel.Visible = false;
 
-			// Ambil node dasar
 			_endTurnBtn = GetNodeOrNull<Button>("Control/EndTurnBtn");
-			_turnLabel = GetNodeOrNull<Label>("Control/TurnLabel");
-
 			if (_endTurnBtn != null)
 				_endTurnBtn.Pressed += () => EmitSignal(SignalName.EndTurnRequested);
 
-			// Setup Combat Panel & Input
 			SetupCombatUI();
 		}
 
@@ -50,27 +45,19 @@ namespace MementoTest.UI
 			if (HasNode("Control/CombatPanel"))
 			{
 				_combatPanel = GetNode<Control>("Control/CombatPanel");
+				_combatLog = _combatPanel.GetNodeOrNull<RichTextLabel>("VBoxContainer/CombatLog");
+				_commandInput = _combatPanel.GetNodeOrNull<LineEdit>("VBoxContainer/CommandInput");
 
-				// Cari Input Box dan Log di dalam hierarki
-				// Menggunakan GetNodeOrNull agar tidak crash jika susunan scene berbeda sedikit
-				if (_combatPanel.HasNode("VBoxContainer/CombatLog"))
-					_combatLog = GetNode<RichTextLabel>("Control/CombatPanel/VBoxContainer/CombatLog");
+				// Cari AP Label (Flexible Path)
+				_apLabel = _combatPanel.GetNodeOrNull<Label>("VBoxContainer/APLabel");
+				if (_apLabel == null) _apLabel = _combatPanel.GetNodeOrNull<Label>("APLabel");
 
-				if (_combatPanel.HasNode("VBoxContainer/CommandInput"))
+				if (_commandInput != null)
 				{
-					_commandInput = GetNode<LineEdit>("Control/CombatPanel/VBoxContainer/CommandInput");
-					// Hubungkan signal input
+					// Pastikan tidak double connect signal
 					if (!_commandInput.IsConnected("text_submitted", new Callable(this, MethodName.OnCommandEntered)))
-					{
 						_commandInput.TextSubmitted += OnCommandEntered;
-					}
 				}
-
-				// Cari AP Label
-				if (_combatPanel.HasNode("VBoxContainer/APLabel"))
-					_apLabel = GetNode<Label>("Control/CombatPanel/VBoxContainer/APLabel");
-				else if (_combatPanel.HasNode("APLabel"))
-					_apLabel = GetNode<Label>("Control/CombatPanel/APLabel");
 
 				_combatPanel.Visible = false;
 			}
@@ -78,69 +65,67 @@ namespace MementoTest.UI
 
 		public override void _Process(double delta)
 		{
-			// Hanya jalankan jika FASE REAKSI AKTIF
+			// Logika Timer & Fokus saat Fase Reaksi
 			if (_isReactionPhase && ReactionPanel.Visible)
 			{
-				// 1. [PERBAIKAN UTAMA] Paksa Fokus Input Box!
-				// Jika kursor lepas dari kotak input, tarik balik secara paksa.
+				// Paksa Fokus ke Input agar player bisa langsung ketik
 				if (_commandInput != null && !_commandInput.HasFocus())
-				{
 					_commandInput.GrabFocus();
-				}
 
-				// 2. Kurangi Waktu
-				ReactionTimerBar.Value -= delta;
-
-				// 3. Cek Timeout
-				if (ReactionTimerBar.Value <= 0)
+				// Hitung Mundur Waktu
+				if (ReactionTimerBar != null)
 				{
-					FailReaction("TIMEOUT");
+					ReactionTimerBar.Value -= delta;
+					if (ReactionTimerBar.Value <= 0)
+					{
+						FailReaction("TIMEOUT");
+					}
 				}
 			}
 		}
-		// --- FUNGSI UTAMA: REACTION SYSTEM (ASYNC) ---
+
+		// --- FUNGSI UTAMA (DIPANGGIL MUSUH) ---
 		public async Task<bool> WaitForPlayerReaction(string commandWord, float duration)
 		{
 			// 1. Reset State
-			_isReactionPhase = false;
-			ShowCombatPanel(true);
-			if (_commandInput != null)
-			{
-				_commandInput.Clear();
-				_commandInput.ReleaseFocus();
-			}
-
+			_isReactionPhase = true;
 			_expectedReactionWord = commandWord.ToLower();
 
-			// 2. Setup UI
+			// [FIX] Buat Task baru untuk ditunggu
+			_reactionTaskSource = new TaskCompletionSource<bool>();
+
+			// 2. Tampilkan UI
+			ShowCombatPanel(true);
 			if (ReactionPanel != null)
 			{
 				ReactionPanel.Visible = true;
-				ReactionPromptLabel.Text = $"TYPE: {commandWord.ToUpper()}!";
-				ReactionTimerBar.MaxValue = duration;
-				ReactionTimerBar.Value = duration;
+				if (ReactionPromptLabel != null) ReactionPromptLabel.Text = $"TYPE: {commandWord.ToUpper()}!";
+				if (ReactionTimerBar != null)
+				{
+					ReactionTimerBar.MaxValue = duration;
+					ReactionTimerBar.Value = duration;
+				}
 			}
 
-			// Tunggu 1 frame visual biar aman (Mencegah glitch)
-			await ToSignal(GetTree(), "process_frame");
+			// Bersihkan Input & Fokus
+			if (_commandInput != null)
+			{
+				_commandInput.Clear();
+				_commandInput.GrabFocus();
+			}
 
-			// 3. Mulai Fase Reaksi
-			_isReactionPhase = true;
-			if (_commandInput != null) _commandInput.GrabFocus();
+			GD.Print($"[HUD] WAITING INPUT: '{commandWord}'");
 
-			GD.Print($"[HUD] WAITING INPUT: '{commandWord}' for {duration}s");
+			// 3. TUNGGU DI SINI SAMPAI ADA HASIL (Anti-Deadlock)
+			// Script akan pause di baris ini sampai _reactionTaskSource di-isi nilainya
+			bool result = await _reactionTaskSource.Task;
 
-			// 4. TUNGGU SIGNAL (Ini kuncinya!)
-			// Script ini akan PAUSE di sini sampai signal 'ReactionEnded' ditembakkan
-			var result = await ToSignal(this, SignalName.ReactionEnded);
-
-			// 5. Cleanup setelah signal diterima
-			if (ReactionPanel != null) ReactionPanel.Visible = false;
+			// 4. Selesai -> Bersihkan UI
 			_isReactionPhase = false;
+			if (ReactionPanel != null) ReactionPanel.Visible = false;
 			if (_commandInput != null) _commandInput.Clear();
 
-			// Ambil hasil true/false dari signal
-			return (bool)result[0];
+			return result;
 		}
 
 		// --- INPUT HANDLER ---
@@ -148,84 +133,92 @@ namespace MementoTest.UI
 		{
 			string cleanText = text.Trim().ToLower();
 
-			// SKENARIO 1: Fase Reaksi (Dodge/Parry)
+			// Skenario 1: Fase Reaksi (Dodge/Parry)
 			if (_isReactionPhase)
 			{
-				GD.Print($"[HUD INPUT CHECK] Expected: {_expectedReactionWord} | Got: {cleanText}");
-
 				if (cleanText == _expectedReactionWord)
 				{
-					// SUKSES -> Tembak Signal TRUE
 					LogToTerminal(">>> PERFECT DEFENSE!", Colors.Cyan);
-					EmitSignal(SignalName.ReactionEnded, true);
+					_reactionTaskSource.TrySetResult(true); // Kirim SUKSES ke Musuh
 				}
 				else
 				{
-					// TYPO -> Tembak Signal FALSE
 					FailReaction("TYPO");
 				}
 
 				if (_commandInput != null) _commandInput.Clear();
-				return; // Stop di sini
+				return; // Stop, jangan proses sebagai command attack
 			}
 
-			// SKENARIO 2: Fase Normal (Attack Player)
+			// Skenario 2: Giliran Player Normal
 			EmitSignal(SignalName.CommandSubmitted, cleanText);
 			if (_commandInput != null) _commandInput.Clear();
 		}
 
 		private void FailReaction(string reason)
 		{
-			if (_isReactionPhase) // Cek biar gak double call
+			if (_isReactionPhase)
 			{
-				GD.Print($"[HUD] REACTION FAILED: {reason}");
+				GD.Print($"[HUD] FAILED: {reason}");
+				_reactionTaskSource.TrySetResult(false); // Kirim GAGAL ke Musuh
 				_isReactionPhase = false;
-
-				if (ReactionPanel != null) ReactionPanel.Visible = false;
-
-				// GAGAL -> Tembak Signal FALSE
-				EmitSignal(SignalName.ReactionEnded, false);
 			}
 		}
 
-		// --- PUBLIC HELPER METHODS ---
-
-		public void SetEndTurnButtonInteractable(bool interactable)
-		{
-			if (_endTurnBtn != null)
-			{
-				_endTurnBtn.Disabled = !interactable;
-				_endTurnBtn.Text = interactable ? "END TURN" : "ENEMY TURNING...";
-			}
-		}
-
-		public void UpdateTurnLabel(string text)
-		{
-			if (_turnLabel != null) _turnLabel.Text = text;
-		}
-
-		public void UpdateAP(int current, int max)
-		{
-			if (_apLabel != null) _apLabel.Text = $"AP: {current}/{max}";
-		}
-
-		public void LogToTerminal(string message, Color color)
-		{
-			if (_combatLog != null)
-			{
-				string hexColor = color.ToHtml();
-				_combatLog.AppendText($"[color=#{hexColor}]{message}[/color]\n");
-			}
-		}
-
+		// --- Helper Methods ---
 		public void ShowCombatPanel(bool show)
 		{
 			if (_combatPanel != null)
 			{
 				_combatPanel.Visible = show;
-				if (show && _commandInput != null)
+				if (show && _commandInput != null) _commandInput.GrabFocus();
+			}
+		}
+
+		private void GrabFocusDeferred()
+		{
+			if (_commandInput != null) _commandInput.GrabFocus();
+		}
+
+		public void SetEndTurnButtonInteractable(bool interactable)
+		{
+			if (_endTurnBtn != null) _endTurnBtn.Disabled = !interactable;
+		}
+		public void UpdateTurnLabel(string text) { } // Implementasi label jika ada
+		public void UpdateAP(int current, int max)
+		{
+			if (_apLabel != null) _apLabel.Text = $"AP: {current}/{max}";
+		}
+		public void LogToTerminal(string message, Color color)
+		{
+			if (_combatLog != null) _combatLog.AppendText($"[color={color.ToHtml()}]{message}[/color]\n");
+		}
+
+		public async void EnablePlayerInput()
+		{
+			if (_combatPanel != null)
+			{
+				_combatPanel.Visible = true;
+
+				if (_commandInput != null)
 				{
+					_commandInput.Editable = true;
+					_commandInput.Clear();
+
+					// 1. Tunggu 1 frame agar Godot selesai merender perubahan UI turn sebelumnya
+					await ToSignal(GetTree(), "process_frame");
+
+					// 2. NUCLEAR RESET: Lepaskan fokus dulu (biar tidak bingung)
+					_commandInput.ReleaseFocus();
+
+					// 3. Ambil Fokus
 					_commandInput.GrabFocus();
+
+					// 4. Pastikan kursor ada di posisi siap ketik
+					_commandInput.CaretColumn = 0;
+
+					// Debug: Pastikan fokus benar-benar diambil
+					GD.Print($"[HUD] Input Focus FORCED. Owner: {GetViewport().GuiGetFocusOwner()?.Name}");
 				}
 			}
 		}

@@ -29,6 +29,12 @@ window/stretch/aspect="expand"
 
 project/assembly_name="Memento-Tes Seleksi"
 
+[global_group]
+
+Player=""
+Enemy=""
+HUD=""
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

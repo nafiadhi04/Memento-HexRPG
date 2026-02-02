@@ -1,7 +1,8 @@
 using Godot;
 using MementoTest.UI;
 using System.Collections.Generic;
-using MementoTest.Entities; // Import namespace Entity// Pastikan namespace UI di-include
+using System.Threading.Tasks; // Perlu untuk Task
+using MementoTest.Entities;
 
 namespace MementoTest.Core
 {
@@ -14,14 +15,23 @@ namespace MementoTest.Core
 		public TurnState CurrentTurn { get; private set; }
 
 		private BattleHUD _battleHUD;
-		
+
+		// Referensi ke Player untuk cek jarak (Opsional tapi disarankan)
+		private Node2D _playerNode;
+
 		public override void _Ready()
 		{
+			// Cari HUD
 			if (GetParent().HasNode("BattleHUD"))
 			{
 				_battleHUD = GetParent().GetNode<BattleHUD>("BattleHUD");
 				_battleHUD.EndTurnRequested += OnEndTurnPressed;
 			}
+
+			// Cari Player (Pastikan Player ada di Group "Player" atau cari manual)
+			// Ini berguna agar musuh yang jauh tidak ikut menyerang
+			var players = GetTree().GetNodesInGroup("Player");
+			if (players.Count > 0) _playerNode = players[0] as Node2D;
 
 			CallDeferred(MethodName.StartPlayerTurn);
 		}
@@ -30,7 +40,6 @@ namespace MementoTest.Core
 		{
 			CurrentTurn = TurnState.Player;
 
-			// Update Tampilan lewat HUD
 			if (_battleHUD != null)
 			{
 				_battleHUD.SetEndTurnButtonInteractable(true);
@@ -42,58 +51,66 @@ namespace MementoTest.Core
 
 		public void ForceEndPlayerTurn()
 		{
-			// Kita panggil logika yang sama dengan saat tombol ditekan
 			OnEndTurnPressed();
 		}
 
 		private void OnEndTurnPressed()
 		{
 			if (CurrentTurn != TurnState.Player) return;
-
 			StartEnemyTurn();
 		}
 
+		// --- BAGIAN YANG DIPERBAIKI ---
 		public async void StartEnemyTurn()
 		{
 			CurrentTurn = TurnState.Enemy;
 			GD.Print("--- ENEMY PHASE START ---");
 			if (_battleHUD != null) _battleHUD.UpdateTurnLabel("ENEMY TURN");
 
-			// 1. Cari semua musuh yang hidup di scene
-			// Kita cari child dari parent yang sama (biasanya root scene) yang tipe-nya EnemyController
-			var allNodes = GetParent().GetChildren();
-			List<EnemyController> enemies = new List<EnemyController>();
+			// 1. [FIX] Cari musuh menggunakan GROUP, bukan Children.
+			// Ini akan menemukan musuh meskipun mereka ada di dalam folder Area1, Area2, dll.
+			var enemyNodes = GetTree().GetNodesInGroup("Enemy");
 
-			foreach (var node in allNodes)
-			{
-				if (node is EnemyController enemy && !enemy.IsQueuedForDeletion())
-				{
-					enemies.Add(enemy);
-				}
-			}
+			bool anyEnemyActed = false;
 
-			// 2. Eksekusi satu per satu (Sequential)
-			if (enemies.Count > 0)
+			// 2. Eksekusi satu per satu
+			foreach (var node in enemyNodes)
 			{
-				foreach (var enemy in enemies)
+				// Validasi: Pastikan node adalah EnemyController dan masih hidup
+				if (node is EnemyController enemy && IsInstanceValid(enemy) && !enemy.IsQueuedForDeletion())
 				{
-					// Tunggu musuh selesai beraksi baru lanjut ke musuh berikutnya
+					// [LOGIKA JARAK] 
+					// Cek jarak ke player. Jika terlalu jauh (> 800 pixel), skip giliran ini.
+					// Ini mencegah Boss di Area 5 menyerang saat kamu masih di Area 1.
+					if (_playerNode != null)
+					{
+						float dist = enemy.GlobalPosition.DistanceTo(_playerNode.GlobalPosition);
+						if (dist > 800) // Angka 800 bisa disesuaikan dengan ukuran layar/area
+						{
+							continue; // Skip musuh ini, lanjut ke musuh berikutnya
+						}
+					}
+
+					anyEnemyActed = true;
+
+					// Jalankan turn musuh
+					// Pastikan di EnemyController fungsi ExecuteTurn mereturn Task
 					await enemy.ExecuteTurn();
 
-					// Jeda sedikit antar musuh biar enak dilihat
+					// Jeda sedikit antar musuh
 					await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
 				}
 			}
-			else
+
+			if (!anyEnemyActed)
 			{
-				GD.Print("Tidak ada musuh tersisa! You Win? (Logic win nanti)");
-				await ToSignal(GetTree().CreateTimer(1.0f), "timeout");
+				GD.Print("Tidak ada musuh aktif di sekitar.");
+				// Jeda sebentar biar tidak terlalu cepat pindah phase
+				await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
 			}
 
 			// 3. Kembalikan giliran ke Player
 			StartPlayerTurn();
 		}
-
-
 	}
 }

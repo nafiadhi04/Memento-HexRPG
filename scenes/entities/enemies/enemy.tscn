@@ -9,8 +9,8 @@
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_essrt"]
 height = 119.999985
 
-[node name="Enemy" type="CharacterBody2D" unique_id=584458365 groups=["EnemyGroup"]]
-z_index = 1
+[node name="Enemy" type="CharacterBody2D" unique_id=584458365 groups=["Enemy", "EnemyGroup"]]
+z_index = 10
 scale = Vector2(0.1, 0.1)
 script = ExtResource("1_essrt")
 SkillList = Array[Object]([ExtResource("2_c8ylr")])

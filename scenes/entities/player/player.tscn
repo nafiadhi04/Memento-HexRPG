@@ -9,16 +9,16 @@
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_nh4ur"]
 height = 119.999985
 
-[node name="Player" type="CharacterBody2D" unique_id=1206653042]
-z_index = 1
+[node name="Player" type="CharacterBody2D" unique_id=1206653042 groups=["Player"]]
+z_index = 10
 scale = Vector2(0.1, 0.1)
 input_pickable = true
 motion_mode = 1
 script = ExtResource("1_635qg")
 MaxAP = 100
+TurnStartBaseRegen = 0
 SkillList = Array[Object]([ExtResource("2_nh4ur")])
 DamagePopupScene = ExtResource("3_bjvvg")
-TurnStartBaseRegen = 0
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=279064122]
 position = Vector2(0, 60)

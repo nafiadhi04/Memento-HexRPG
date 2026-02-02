@@ -1,0 +1,48 @@
+[gd_scene format=3 uid="uid://qo415ne0pan2"]
+
+[ext_resource type="Script" uid="uid://c6y1knerprb60" path="res://scripts/core/LockedArea.cs" id="1_12heu"]
+[ext_resource type="Texture2D" uid="uid://c1ov7mp1og3l8" path="res://resources/particles/FogTexture.tres" id="1_cbxdd"]
+[ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="2_12heu"]
+
+[sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_ya60f"]
+light_mode = 1
+
+[sub_resource type="Gradient" id="Gradient_tpff1"]
+offsets = PackedFloat32Array(0, 0.5197629, 0.9587912, 1)
+colors = PackedColorArray(0.8649394, 0.8649394, 0.8649394, 0, 0.8649394, 0.8649394, 0.8649394, 0.81200004, 0.91662633, 0.91662633, 0.91662633, 0.07, 0.5, 0.5, 0.5, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_cbxdd"]
+gradient = SubResource("Gradient_tpff1")
+
+[sub_resource type="ParticleProcessMaterial" id="ParticleProcessMaterial_cbxdd"]
+particle_flag_disable_z = true
+emission_shape = 3
+emission_box_extents = Vector3(150, 400, 1)
+angle_min = -360.0
+angle_max = 360.00003
+spread = 180.0
+initial_velocity_min = 5.0
+initial_velocity_max = 15.0
+angular_velocity_min = -5.000016
+angular_velocity_max = 4.999984
+gravity = Vector3(0, 0, 0)
+scale_min = 0.5
+color_ramp = SubResource("GradientTexture1D_cbxdd")
+
+[node name="LockedArea" type="Node2D" unique_id=42898743]
+script = ExtResource("1_12heu")
+
+[node name="FogParticles" type="GPUParticles2D" parent="." unique_id=925305997]
+texture_filter = 1
+material = SubResource("CanvasItemMaterial_ya60f")
+use_parent_material = true
+amount = 30000
+texture = ExtResource("1_cbxdd")
+lifetime = 5.0
+preprocess = 4.0
+process_material = SubResource("ParticleProcessMaterial_cbxdd")
+
+[node name="LockIcon" type="Sprite2D" parent="." unique_id=143260505]
+modulate = Color(1, 1, 0, 1)
+scale = Vector2(0.25, 0.25)
+texture = ExtResource("2_12heu")

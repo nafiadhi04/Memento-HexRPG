@@ -5,11 +5,15 @@ namespace MementoTest.Core
 {
 	public partial class MapManager : TileMapLayer
 	{
+		public static MapManager Instance { get; private set; }
+		[Export] public TileMapLayer GameBoard;
 		// Variabel untuk Kursor Visual
 		private Line2D _highlightCursor;
 
 		public override void _Ready()
+
 		{
+			Instance = this;
 			GD.Print("MapManager: Grid system initialized.");
 
 			// --- FITUR BARU: Auto-Create Cursor ---
@@ -22,6 +26,25 @@ namespace MementoTest.Core
 			UpdateCursorPosition();
 		}
 
+		public Vector2I WorldToGrid(Vector2 worldPos)
+		{
+			if (GameBoard == null)
+			{
+				GD.PrintErr("[MAP ERROR] GameBoard belum di-assign di Inspector MapManager!");
+				return Vector2I.Zero;
+			}
+			// Ubah posisi dunia ke lokal TileMap, lalu ke Grid Coordinate
+			return GameBoard.LocalToMap(GameBoard.ToLocal(worldPos));
+		}
+
+		// 2. Mengubah Koordinat Grid (Kolom, Baris) -> Posisi Dunia (Pixel Tengah)
+		public Vector2 GridToWorld(Vector2I gridPos)
+		{
+			if (GameBoard == null) return Vector2.Zero;
+
+			// Ubah Grid ke Lokal, lalu ke Global World Position
+			return GameBoard.ToGlobal(GameBoard.MapToLocal(gridPos));
+		}
 		private void CreateHighlightCursor()
 		{
 			// Membuat node Line2D secara coding (tanpa perlu add node di Scene)
