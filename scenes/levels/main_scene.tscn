@@ -16,6 +16,7 @@ FogArea2 = NodePath("LockedAreas/Area2Fog")
 Area1Tracker = NodePath("EnemyGroups/Area1")
 
 [node name="TileSelector" parent="." unique_id=2025738061 instance=ExtResource("2_8hc5g")]
+visible = false
 z_index = 1
 
 [node name="MapManager" parent="." unique_id=475127524 node_paths=PackedStringArray("GameBoard") instance=ExtResource("2_ybdc1")]

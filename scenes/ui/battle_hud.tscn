@@ -38,8 +38,10 @@ font_size = 32
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
-[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar")]
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar")]
 script = ExtResource("1_dy3po")
+ScoreLabel = NodePath("ScoreLabel")
+ComboLabel = NodePath("ComboLabel")
 ReactionPanel = NodePath("ReactionPanel")
 ReactionPromptLabel = NodePath("ReactionPanel/VboxContainer/ReactionPromptLabel")
 ReactionTimerBar = NodePath("ReactionPanel/VboxContainer/ReactionTimerBar")
@@ -83,13 +85,9 @@ mouse_filter = 2
 
 [node name="HPBar" type="ProgressBar" parent="Control" unique_id=258145136]
 layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_top = -13.5
+offset_top = 25.0
 offset_right = 175.0
-offset_bottom = 11.5
-grow_vertical = 2
+offset_bottom = 50.0
 theme_override_styles/background = SubResource("StyleBoxFlat_p6blr")
 theme_override_styles/fill = SubResource("StyleBoxFlat_6uyy6")
 value = 50.0
@@ -97,13 +95,9 @@ show_percentage = false
 
 [node name="APBar" type="ProgressBar" parent="Control" unique_id=311228537]
 layout_mode = 1
-anchors_preset = 4
-anchor_top = 0.5
-anchor_bottom = 0.5
-offset_top = 12.0
+offset_top = 49.0
 offset_right = 175.0
-offset_bottom = 37.0
-grow_vertical = 2
+offset_bottom = 74.0
 theme_override_styles/background = SubResource("StyleBoxFlat_nj5vo")
 theme_override_styles/fill = SubResource("StyleBoxFlat_ytn0o")
 value = 50.0
@@ -160,3 +154,23 @@ tab_size = 15
 
 [node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer" unique_id=1274233966]
 layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="." unique_id=1072409048]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -167.0
+offset_top = 45.0
+offset_right = -7.0
+offset_bottom = 68.0
+grow_horizontal = 0
+
+[node name="ComboLabel" type="Label" parent="." unique_id=744383370]
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -174.0
+offset_top = 12.0
+offset_right = -14.0
+offset_bottom = 35.0
+grow_horizontal = 0

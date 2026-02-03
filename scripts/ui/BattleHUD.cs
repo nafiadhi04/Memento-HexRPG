@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using System.Threading.Tasks;
+using MementoTest.Core;
 
 namespace MementoTest.UI
 {
@@ -10,6 +11,9 @@ namespace MementoTest.UI
 		[Signal] public delegate void CommandSubmittedEventHandler(string commandText);
 		[Signal] public delegate void EndTurnRequestedEventHandler();
 		// (Signal ReactionEnded dihapus karena kita ganti pakai Task yang lebih canggih)
+
+		[Export] public Label ScoreLabel;
+		[Export] public Label ComboLabel;
 
 		// --- EXPORT UI ---
 		[Export] public Control ReactionPanel;
@@ -47,6 +51,41 @@ namespace MementoTest.UI
 
 			if (PlayerHPBar != null) PlayerHPBar.Value = PlayerHPBar.MaxValue;
 			if (PlayerAPBar != null) PlayerAPBar.Value = PlayerAPBar.MaxValue;
+			CallDeferred("ConnectToScoreManager");
+		}
+		private void ConnectToScoreManager()
+		{
+			if (ScoreManager.Instance != null)
+			{
+				ScoreManager.Instance.ScoreUpdated += OnScoreUpdated;
+				ScoreManager.Instance.ComboUpdated += OnComboUpdated;
+
+				// Reset tampilan awal
+				OnScoreUpdated(0);
+				OnComboUpdated(0);
+			}
+		}
+
+		private void OnScoreUpdated(int newScore)
+		{
+			if (ScoreLabel != null) ScoreLabel.Text = $"SCORE: {newScore:N0}"; // N0 biar ada titik (1.000)
+		}
+
+		private void OnComboUpdated(int newCombo)
+		{
+			if (ComboLabel != null)
+			{
+				ComboLabel.Text = $"COMBO: x{newCombo}";
+
+				// Efek visual sederhana: Warna berubah kalau combo tinggi
+				if (newCombo > 5) ComboLabel.Modulate = Colors.Yellow;
+				else ComboLabel.Modulate = Colors.White;
+
+				// Animasi kecil (Punch)
+				var tween = CreateTween();
+				ComboLabel.Scale = new Vector2(1.5f, 1.5f);
+				tween.TweenProperty(ComboLabel, "scale", Vector2.One, 0.2f);
+			}
 		}
 
 		private void SetupCombatUI()

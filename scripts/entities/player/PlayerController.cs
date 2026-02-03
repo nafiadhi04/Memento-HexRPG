@@ -220,32 +220,42 @@ namespace MementoTest.Entities
 
 			command = command.ToLower().Trim();
 
-			// SKENARIO SUKSES
+			// SKENARIO SUKSES (Skill Ditemukan)
 			if (_skillDatabase.ContainsKey(command))
 			{
 				var skill = _skillDatabase[command];
 
 				if (_currentAP >= skill.Cost)
 				{
+					// 1. Kurangi AP & Regen
 					_currentAP -= skill.Cost;
 					_currentAP = Math.Min(_currentAP + SuccessRegenAP, MaxAP); // Regen + Cap Max
 					_hud?.UpdateAP(_currentAP, MaxAP);
 
 					_hud?.LogToTerminal($"> EXECUTING '{command.ToUpper()}'...", Colors.Green);
 
-					// Eksekusi Serangan
+					// 2. [SCORING] Tambah Skor & Combo!
+					// Skor dasar 100 per serangan sukses (bisa diubah sesuai damage skill)
+					ScoreManager.Instance?.AddScore(100);
+
+					// 3. Eksekusi Serangan (Animasi & Damage)
 					await PerformAttackAnimation(skill.Damage);
 				}
 				else
 				{
 					_hud?.LogToTerminal($"ERROR: NEED {skill.Cost} AP.", Colors.Red);
+					// (Opsional) Tidak reset combo kalau cuma kurang AP, tapi terserah desain game-mu
 				}
 			}
-			// SKENARIO TYPO / GAGAL
+			// SKENARIO TYPO / GAGAL (Skill Tidak Ditemukan)
 			else
 			{
+				// 1. Hukuman AP
 				_currentAP = Math.Max(0, _currentAP - TypoPenaltyAP);
 				_hud?.UpdateAP(_currentAP, MaxAP);
+
+				// 2. [SCORING] Reset Combo karena Typo!
+				ScoreManager.Instance?.ResetCombo();
 
 				_hud?.LogToTerminal($"> SYNTAX ERROR: '{command}'", Colors.Red);
 
@@ -339,6 +349,11 @@ namespace MementoTest.Entities
 			// Efek Merah
 			Modulate = Colors.Red;
 			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.3f);
+			
+			if (damage > 0)
+			{
+				ScoreManager.Instance.ResetCombo();
+			}
 
 			if (_currentHP <= 0) Die();
 		}
