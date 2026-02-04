@@ -24,10 +24,12 @@ namespace MementoTest.UI
 	// --- [BARU] PLAYER STATS BARS ---
         [Export] public ProgressBar PlayerHPBar;
         [Export] public ProgressBar PlayerAPBar;
-		[Export] public Label HPLabel; 
-		
+		[Export] public Label HPLabel;
+
 		// --- INTERNAL ---
-		private bool _isReactionPhase = false;
+		private bool _isReactionPhase;
+		public bool IsBusy { get; private set; }
+
 		private string _expectedReactionWord = "";
 
 		//  Wadah untuk menunggu hasil input player

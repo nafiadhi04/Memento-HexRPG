@@ -363,8 +363,14 @@ namespace MementoTest.Entities
 			if (DamagePopupScene == null) return;
 
 			var popup = DamagePopupScene.Instantiate<DamagePopup>();
-			AddChild(popup); // Karena TopLevel = true, dia gak ikut gerak player
-			popup.SetupAndAnimate(amount, GlobalPosition + new Vector2(0, -40), Colors.Red);
+			AddChild(popup);
+
+			// Player kena damage → MERAH
+			popup.SetupAndAnimate(
+				amount,
+				GlobalPosition + new Vector2(0, -30),
+				Colors.Red
+			);
 		}
 
 		private void Die()

@@ -9,6 +9,14 @@
 [ext_resource type="PackedScene" uid="uid://8ta2vd0iv23n" path="res://scenes/ui/battle_hud.tscn" id="5_43vid"]
 [ext_resource type="Script" uid="uid://b4ofm18pb8w1g" path="res://scripts/core/AreaTracker.cs" id="6_8hc5g"]
 [ext_resource type="PackedScene" uid="uid://qo415ne0pan2" path="res://scenes/levels/locked_area.tscn" id="6_fiowe"]
+[ext_resource type="Script" uid="uid://c556nbxe4u3h7" path="res://scripts/core/battle/EnemyAIProfile.cs" id="9_iusvx"]
+
+[sub_resource type="Resource" id="Resource_p61ap"]
+script = ExtResource("9_iusvx")
+PreferredDistance = 1.0
+RetreatDistance = 0.0
+ChaseDistance = 999.0
+metadata/_custom_type_script = "uid://c556nbxe4u3h7"
 
 [node name="Main Scene" type="Node2D" unique_id=1483603412 node_paths=PackedStringArray("FogArea2", "Area1Tracker")]
 script = ExtResource("1_brv2t")
@@ -48,7 +56,9 @@ z_index = 10
 script = ExtResource("6_8hc5g")
 
 [node name="Enemy" parent="EnemyGroups/Area1" unique_id=584458365 instance=ExtResource("3_3ulyp")]
-position = Vector2(414.99997, 100.99999)
+position = Vector2(436, 107)
+MaxHP = 100
+AiProfile = SubResource("Resource_p61ap")
 
 [node name="BattleHUD" parent="." unique_id=682286073 groups=["HUD"] instance=ExtResource("5_43vid")]
 layer = 2

@@ -14,9 +14,9 @@ z_index = 10
 scale = Vector2(0.1, 0.1)
 script = ExtResource("1_essrt")
 SkillList = Array[Object]([ExtResource("2_c8ylr")])
-DamagePopupScene = ExtResource("3_pm80n")
 ReactionTimeMelee = 5.0
 ReactionTimeRanged = 5.0
+DamagePopupScene = ExtResource("3_pm80n")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=630790635]
 modulate = Color(1, 0.3, 0.3, 1)

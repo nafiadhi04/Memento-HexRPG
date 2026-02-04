@@ -2,39 +2,54 @@ using Godot;
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Threading.Tasks; // Wajib untuk async/await
-using MementoTest.Entities;   // Agar kenal PlayerController
-using MementoTest.Resources;  // Agar kenal EnemySkill// [WAJIB] Tambahkan baris ini agar 'Task' dikenali!
-
+using System.Threading.Tasks;
+using MementoTest.Entities;
+using MementoTest.Resources;
 using MementoTest.Core;
+using MementoTest.UI;
 
 namespace MementoTest.Entities
 {
 	public partial class EnemyController : CharacterBody2D
 	{
-		[Export] public float MoveDuration = 0.3f;
+		/* =======================
+		 * EXPORT / CONFIG
+		 * ======================= */
+		[ExportGroup("Stats")]
 		[Export] public int MaxHP = 50;
+
+		[ExportGroup("Movement")]
+		[Export] public float MoveDuration = 0.3f;
+
+		[ExportGroup("Combat")]
 		[Export] public Godot.Collections.Array<EnemySkill> SkillList;
+		[Export] public float ReactionTimeMelee = 1.5f;
+		[Export] public float ReactionTimeRanged = 2.0f;
 		[Export] public PackedScene DamagePopupScene;
 
-		[ExportGroup("Combat Settings")] // Opsional: Biar rapi di Inspector
-		[Export] public float ReactionTimeMelee = 1.5f; // Waktu untuk Parry (Jarak Dekat)
-		[Export] public float ReactionTimeRanged = 2.0f;
-		private int _currentHP;
-		private PlayerController _targetPlayer;
+		[ExportGroup("AI")]
+		[Export] public EnemyAIProfile AiProfile;
 
-		// Hapus variabel Timer lama jika masih ada
-		// private Timer _moveTimer; 
+		/* =======================
+		 * STATE
+		 * ======================= */
+		private int _currentHP;
+		private bool _isBusy;
+		
+		private PlayerController _targetPlayer;
 
 		private MapManager _mapManager;
 		private Vector2I _currentGridPos;
-		private bool _isMoving = false;
-		private Random _rng = new Random();
 		private ProgressBar _healthBar;
+		private BattleHUD _hud;
+		private bool _isExecutingTurn = false;
+		private bool _isAttacking = false;
 
-		private MementoTest.UI.BattleHUD _hud;
 
-		private readonly TileSet.CellNeighbor[] _hexNeighbors = {
+		private readonly Random _rng = new();
+
+		private readonly TileSet.CellNeighbor[] _hexNeighbors =
+		{
 			TileSet.CellNeighbor.TopSide,
 			TileSet.CellNeighbor.BottomSide,
 			TileSet.CellNeighbor.TopLeftSide,
@@ -43,301 +58,360 @@ namespace MementoTest.Entities
 			TileSet.CellNeighbor.BottomRightSide
 		};
 
+		/* =======================
+		 * LIFECYCLE
+		 * ======================= */
 		public override void _Ready()
 		{
-			base._Ready();
 			_currentHP = MaxHP;
 
-			// 1. Setup HealthBar
 			_healthBar = GetNodeOrNull<ProgressBar>("HealthBar");
 			if (_healthBar != null)
 			{
 				_healthBar.MaxValue = MaxHP;
 				_healthBar.Value = _currentHP;
-				_healthBar.Visible = true;
 			}
 
-			// 2. Setup MapManager (Cek parent untuk jaga-jaga, tapi pakai Singleton lebih baik nanti)
-			if (GetParent().HasNode("MapManager"))
-			{
-				_mapManager = GetParent().GetNode<MapManager>("MapManager");
-				_currentGridPos = _mapManager.GetGridCoordinates(GlobalPosition);
-				GlobalPosition = _mapManager.GetSnappedWorldPosition(GlobalPosition);
-			}
+			_mapManager = MapManager.Instance;
+			_currentGridPos = _mapManager.WorldToGrid(GlobalPosition);
+			GlobalPosition = _mapManager.GridToWorld(_currentGridPos);
+
+			_targetPlayer = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
+			_hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
 
 			AddToGroup("Enemy");
-
-			// 3. [FIX] Cari Player pakai Group (Anti Error Folder)
-			var playerNode = GetTree().GetFirstNodeInGroup("Player");
-			if (playerNode is PlayerController player)
-			{
-				_targetPlayer = player;
-			}
-
-			// 4. [FIX UTAMA] Cari HUD pakai Group (Wajib!)
-			// Kita cari node apa saja yang punya grup "HUD"
-			var hudNode = GetTree().GetFirstNodeInGroup("HUD");
-
-			if (hudNode is MementoTest.UI.BattleHUD hud)
-			{
-				_hud = hud;
-				GD.Print($"[ENEMY] {Name} SUKSES Connect ke HUD.");
-			}
-			else
-			{
-				// Kalau ini muncul, berarti kamu lupa langkah di Editor (Langkah 2 di bawah)
-				GD.PrintErr($"[ENEMY] {Name} GAGAL Connect ke HUD! Node 'BattleHUD' belum masuk Group 'HUD'.");
-			}
-
-
-			FindTargetPlayer();
-			SnapToNearestGrid();
 		}
 
-		private void SnapToNearestGrid()
-		{
-			// Cek dulu biar gak error kalau MapManager belum siap
-			if (MapManager.Instance == null)
-			{
-				GD.PrintErr("[ENEMY] MapManager Instance belum siap!");
-				return;
-			}
-
-			Vector2I gridCoords = MapManager.Instance.WorldToGrid(GlobalPosition);
-			Vector2 centeredPos = MapManager.Instance.GridToWorld(gridCoords);
-			GlobalPosition = centeredPos;
-		}
-		private void FindTargetPlayer()
-		{
-			// Cari node pertama yang ada di grup "Player"
-			var playerNode = GetTree().GetFirstNodeInGroup("Player");
-
-			if (playerNode is PlayerController player) // Ganti 'PlayerController' sesuai nama class script Playermu
-			{
-				_targetPlayer = player;
-				GD.Print($"[ENEMY] {Name} menemukan target: {_targetPlayer.Name}");
-			}
-			else if (playerNode != null)
-			{
-				// Fallback jika scriptnya bukan PlayerController tapi Node2D biasa
-				// Sesuaikan casting ini dengan script player kamu (misal: 'Player' atau 'CharacterBody2D')
-				GD.PrintErr($"[ENEMY] Node ditemukan tapi tipe script salah!");
-			}
-		}
-		// Fungsi ini dipanggil oleh TurnManager.cs
-		// Kata kunci 'async Task' membuat fungsi ini bisa ditunggu (await)
-		public async Task DoTurnAction()
-		{
-			List<Vector2I> validMoves = GetValidNeighbors();
-
-			if (validMoves.Count > 0)
-			{
-				int randomIndex = GD.RandRange(0, validMoves.Count - 1);
-				Vector2I targetGrid = validMoves[randomIndex];
-
-				// Tunggu sampai animasi jalan selesai baru lanjut
-				await MoveToGrid(targetGrid);
-			}
-			else
-			{
-				// Jika macet, diam sebentar (0.5 detik) seolah-olah mikir
-				await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
-			}
-		}
-
-		private List<Vector2I> GetValidNeighbors()
-		{
-			List<Vector2I> neighbors = new List<Vector2I>();
-
-			foreach (var direction in _hexNeighbors)
-			{
-				Vector2I neighborCell = _mapManager.GetNeighborCell(_currentGridPos, direction);
-
-				// Cek 1: Apakah tanahnya bisa diinjak?
-				if (_mapManager.IsTileWalkable(neighborCell))
-				{
-					// Cek 2: Apakah ada unit lain di sana? (Fitur baru)
-					if (!_mapManager.IsTileOccupied(neighborCell))
-					{
-						neighbors.Add(neighborCell);
-					}
-				}
-			}
-			return neighbors;
-		}
-
-		private async Task MoveToGrid(Vector2I targetGrid)
-		{
-			_isMoving = true;
-
-			Vector2 targetWorldPos = _mapManager.MapToLocal(targetGrid);
-
-			Tween tween = CreateTween();
-			tween.TweenProperty(this, "global_position", targetWorldPos, MoveDuration)
-				.SetTrans(Tween.TransitionType.Sine)
-				.SetEase(Tween.EaseType.Out);
-
-			// Tunggu sinyal 'finished' dari tween
-			await ToSignal(tween, "finished");
-
-			_currentGridPos = targetGrid;
-			_isMoving = false;
-		}
-
+		/* =======================
+		 * TURN ENTRY POINT
+		 * ======================= */
 		public async Task ExecuteTurn()
 		{
-			if (_targetPlayer == null || !GodotObject.IsInstanceValid(_targetPlayer))
+			// Tunggu sampai HUD benar-benar idle
+			while (_hud != null && _hud.IsBusy)
 			{
-				GD.Print($"{Name}: Tidak ada target.");
+				await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
+			}
+
+			if (_isExecutingTurn) return;
+			_isExecutingTurn = true;
+
+			GD.Print("[AI] Enemy TURN START");
+
+			if (_targetPlayer == null || AiProfile == null)
+			{
+				_isExecutingTurn = false;
 				return;
 			}
 
-			// 1. Hitung Jarak Real ke Player (Pixel)
-			float distToPlayer = GlobalPosition.DistanceTo(_targetPlayer.GlobalPosition);
-			GD.Print($"{Name} distance to player: {distToPlayer:F1}px");
+			await HandleAI();
 
-			// 2. AI BERPIKIR: Cari skill apa yang bisa dipakai di jarak segini?
-			// Kita filter SkillList: Ambil skill yang Range-nya >= Jarak Musuh ke Player
-			var validSkills = SkillList.Where(s => s.AttackRange >= distToPlayer).ToList();
-
-			if (validSkills.Count > 0)
-			{
-				// Kalau ada skill yang valid, pilih satu secara acak (Biar variatif)
-				int index = _rng.Next(validSkills.Count);
-				EnemySkill chosenSkill = validSkills[index];
-
-				// Lakukan serangan
-				await PerformSkill(chosenSkill);
-			}
-			else
-			{
-				// Kalau tidak ada skill yang nyampai (kejauhan)
-				GD.Print($"{Name}: Target terlalu jauh untuk semua skill. Menunggu...");
-				// (Nanti di sini kita masukkan logika Move/Jalan mendekat)
-				await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
-			}
-
-			
+			_isExecutingTurn = false;
 		}
+
+
+		private async Task HandleAI()
+		{
+			int gridDist = GetGridDistanceToPlayer();
+
+			GD.Print($"[AI] GridDist = {gridDist}");
+
+			switch (AiProfile.Behavior)
+			{
+				case EnemyAIProfile.BehaviorType.Aggressive:
+					await HandleAggressive(gridDist);
+					break;
+
+				case EnemyAIProfile.BehaviorType.Kiting:
+					await HandleKiting(gridDist);
+					break;
+			}
+		}
+
+
+		private async Task HandleAggressive(int gridDist)
+		{
+			GD.Print($"[AI] Aggressive | GridDist = {gridDist}");
+
+			// 1. Kejar player
+			if (gridDist > AiProfile.PreferredDistance)
+			{
+				GD.Print("[AI] Aggressive: chasing player");
+				await MoveTowardsPlayer();
+				return;
+			}
+
+			// 2. Pastikan HUD siap
+			while (_hud != null && _hud.IsBusy)
+			{
+				await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
+			}
+
+			// 3. Serang
+			GD.Print("[AI] Aggressive: in range, attacking");
+			await TryAttack(gridDist);
+		}
+
+
+		private async Task HandleKiting(int gridDist)
+		{
+			GD.Print($"[AI] Kiting | GridDist = {gridDist}");
+
+			// 1. Terlalu dekat → mundur
+			if (gridDist < AiProfile.RetreatDistance)
+			{
+				GD.Print("[AI] Kiting: retreating");
+				await MoveAwayFromPlayer();
+				return;
+			}
+
+			// 2. Ideal → serang
+			if (gridDist <= AiProfile.PreferredDistance)
+			{
+				while (_hud != null && _hud.IsBusy)
+				{
+					await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
+				}
+
+				GD.Print("[AI] Kiting: attacking");
+				await TryAttack(gridDist);
+				return;
+			}
+
+			// 3. Terlalu jauh → kejar
+			if (gridDist <= AiProfile.ChaseDistance)
+			{
+				GD.Print("[AI] Kiting: chasing");
+				await MoveTowardsPlayer();
+				return;
+			}
+
+			// 4. Diam
+			await Wait();
+		}
+
+
+		private async Task TryAttack(int dist)
+		{
+			var usableSkills = SkillList
+				.Where(s => s.AttackRange >= dist)
+				.ToList();
+
+			if (usableSkills.Count == 0)
+			{
+				GD.Print("[AI] No usable skills, waiting");
+				await Wait();
+				return;
+			}
+
+			if (_hud != null && _hud.IsBusy)
+			{
+				GD.Print("[AI] HUD busy, delaying attack");
+				await Wait();
+				return;
+			}
+
+			var skill = usableSkills[_rng.Next(usableSkills.Count)];
+			await PerformSkill(skill);
+		}
+
+		private async Task TryAttackPixel()
+		{
+			float pixelDist = GlobalPosition.DistanceTo(_targetPlayer.GlobalPosition);
+
+			var skills = SkillList.Where(s => s.AttackRange >= pixelDist).ToList();
+			if (skills.Count == 0)
+			{
+				await Wait();
+				return;
+			}
+
+			await PerformSkill(skills[_rng.Next(skills.Count)]);
+		}
+
+
 
 		private async Task PerformSkill(EnemySkill skill)
 		{
-			GD.Print($"{Name} using skill [{skill.SkillName}]");
+			if (_isAttacking) return;
+			_isAttacking = true;
 
-			Vector2 originalPos = GlobalPosition;
-			Vector2 direction = originalPos.DirectionTo(_targetPlayer.GlobalPosition);
-			Vector2 attackPos = originalPos + (direction * 30f); // Maju dikit
+			GD.Print($"[AI] Performing skill: {skill.SkillName}");
 
-			// 1. Animasi Maju
-			Tween attackTween = CreateTween();
-			attackTween.TweenProperty(this, "global_position", attackPos, 0.2f);
-			await ToSignal(attackTween, "finished");
+			Vector2 startPos = GlobalPosition;
+			Vector2 dir = startPos.DirectionTo(_targetPlayer.GlobalPosition);
 
-			// 2. Minta Reaksi Player (Panggil HUD yang baru)
-			bool isDodged = false;
+			Tween t = CreateTween();
+			t.TweenProperty(this, "global_position", startPos + dir * 30f, 0.2f);
+			await ToSignal(t, "finished");
+
+			bool success = false;
 
 			if (_hud != null)
 			{
-				string word = (skill.AttackRange < 150) ? "parry" : "dodge";
-				float time = (skill.AttackRange < 150) ? ReactionTimeMelee : ReactionTimeRanged;
+				bool melee = skill.AttackRange <= AiProfile.MeleeThreshold;
+				string word = melee ? "parry" : "dodge";
+				float time = melee ? ReactionTimeMelee : ReactionTimeRanged;
 
-				// Await ini SEKARANG AMAN karena pakai TaskCompletionSource
-				isDodged = await _hud.WaitForPlayerReaction(word, time);
+				success = await _hud.WaitForPlayerReaction(word, time);
 			}
 
-			// 3. Eksekusi Damage
-			if (isDodged)
-			{
-				GD.Print(">>> REACTION SUCCESS! 0 DAMAGE.");
-				_targetPlayer.TakeDamage(0); // Damage 0 -> Muncul Popup "0" atau "MISS"
-			}
-			else
-			{
-				GD.Print(">>> FAILED! TAKING DAMAGE.");
+			if (!success)
 				_targetPlayer.TakeDamage(skill.Damage);
-			}
 
-			// 4. Mundur
-			Tween returnTween = CreateTween();
-			returnTween.TweenProperty(this, "global_position", originalPos, 0.2f);
-			await ToSignal(returnTween, "finished");
+			Tween back = CreateTween();
+			back.TweenProperty(this, "global_position", startPos, 0.2f);
+			await ToSignal(back, "finished");
+
+			_isAttacking = false;
 		}
-		public void TakeDamage(int damage)
+		/* =======================
+		 * MOVEMENT
+		 * ======================= */
+		private List<Vector2I> GetValidNeighbors()
 		{
-			_currentHP -= damage;
+			List<Vector2I> neighbors = new();
 
-			if (_healthBar != null)
+			if (_mapManager == null)
+				return neighbors;
+
+			foreach (var dir in _hexNeighbors)
 			{
-				_healthBar.Value = _currentHP;
+				Vector2I cell = _mapManager.GetNeighborCell(_currentGridPos, dir);
+
+				if (_mapManager.IsTileWalkable(cell) &&
+					!_mapManager.IsTileOccupied(cell))
+				{
+					neighbors.Add(cell);
+				}
 			}
 
-			ShowDamagePopup(damage);
-			Modulate = Colors.Red;
-			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.2f);
+			return neighbors;
+		}
+
+		private Vector2I GetBestMoveTowards(Vector2 targetWorldPos)
+		{
+			var neighbors = GetValidNeighbors();
+
+			if (neighbors.Count == 0)
+				return _currentGridPos;
+
+			Vector2I best = neighbors[0];
+			float bestDist = float.MaxValue;
+
+			foreach (var cell in neighbors)
+			{
+				Vector2 worldPos = _mapManager.MapToLocal(cell);
+				float dist = worldPos.DistanceTo(targetWorldPos);
+
+				if (dist < bestDist)
+				{
+					bestDist = dist;
+					best = cell;
+				}
+			}
+
+			return best;
+		}
+
+		private async Task MoveTowardsPlayer()
+		{
+			Vector2I next = GetBestMoveTowards(_targetPlayer.GlobalPosition);
+
+			if (next != _currentGridPos)
+				await MoveToGrid(next);
+		}
+
+		private async Task MoveAwayFromPlayer()
+		{
+			Vector2 awayDir =
+				GlobalPosition + (GlobalPosition - _targetPlayer.GlobalPosition);
+
+			Vector2I next = GetBestMoveTowards(awayDir);
+
+			if (next != _currentGridPos)
+				await MoveToGrid(next);
+		}
+
+
+		private async Task Wait(float time = 0.3f)
+		{
+			await ToSignal(GetTree().CreateTimer(time), "timeout");
+		}
+
+		private async Task MoveByDirection(Vector2 dir)
+		{
+			Vector2I best = _currentGridPos;
+			float bestScore = -9999f;
+
+			foreach (var n in _hexNeighbors)
+			{
+				Vector2I cell = _mapManager.GetNeighborCell(_currentGridPos, n);
+				if (!_mapManager.IsTileWalkable(cell)) continue;
+				if (_mapManager.IsTileOccupied(cell)) continue;
+
+				Vector2 world = _mapManager.GridToWorld(cell);
+				float score = world.DirectionTo(GlobalPosition + dir).Dot(dir);
+
+				if (score > bestScore)
+				{
+					bestScore = score;
+					best = cell;
+				}
+			}
+
+			if (best != _currentGridPos)
+				await MoveToGrid(best);
+		}
+
+		private async Task MoveToGrid(Vector2I target)
+		{
+			Vector2 world = _mapManager.GridToWorld(target);
+			Tween t = CreateTween();
+			t.TweenProperty(this, "global_position", world, MoveDuration);
+			await ToSignal(t, "finished");
+			_currentGridPos = target;
+		}
+		private int GetGridDistanceToPlayer()
+		{
+			Vector2I playerGrid = _mapManager.GetGridCoordinates(_targetPlayer.GlobalPosition);
+			return (int)_currentGridPos.DistanceTo(playerGrid);
+		}
+
+		/* =======================
+		 * DAMAGE & DEATH
+		 * ======================= */
+		public void TakeDamage(int dmg)
+		{
+			_currentHP -= dmg;
+			ShowDamagePopup(dmg);
+			if (_healthBar != null) _healthBar.Value = _currentHP;
 
 			if (_currentHP <= 0)
-			{
 				Die();
-			}
 		}
 
 		private void ShowDamagePopup(int amount)
 		{
-			if (DamagePopupScene != null)
-			{
-				// 1. Buat instance
-				var popup = DamagePopupScene.Instantiate<MementoTest.UI.DamagePopup>();
+			if (DamagePopupScene == null) return;
 
-				// 2. Masukkan ke scene tree (tambahkan sebagai child dari Level/Root, atau diri sendiri)
-				// Karena kita sudah set 'TopLevel = true' di script popup, jadi child diri sendiri aman.
-				AddChild(popup);
+			var popup = DamagePopupScene.Instantiate<DamagePopup>();
+			AddChild(popup);
 
-				// 3. Tentukan warna (Misal: Player kena hit = Merah, Musuh kena hit = Putih/Kuning)
-				// Logika sederhana: Kalau ini script Player, warnanya Merah.
-				Color color = Colors.Yellow;
-
-				// 4. Jalankan animasi (Posisi muncul di atas kepala sedikit)
-				popup.SetupAndAnimate(amount, GlobalPosition + new Vector2(0, -30), color);
-			}
+			// Enemy kena damage → KUNING
+			popup.SetupAndAnimate(
+				amount,
+				GlobalPosition + new Vector2(0, -30),
+				Colors.Yellow
+			);
 		}
 
 		private async void Die()
 		{
-			GD.Print($"ENEMY DEFEATED: {Name}");
-
-			// 1. Matikan Interaksi (PENTING)
-			// Supaya player tidak bisa klik musuh ini lagi saat animasi mati berjalan
-			// Kita matikan CollisionShape-nya
-			var collision = GetNodeOrNull<CollisionShape2D>("CollisionShape2D");
-			if (collision != null)
-			{
-				collision.SetDeferred("disabled", true);
-			}
-
-			// Sembunyikan Health Bar biar rapi
-			if (_healthBar != null) _healthBar.Visible = false;
-
-			// 2. Animasi Kematian (Juicy!)
-			Tween tween = CreateTween();
-			tween.SetParallel(true); // Jalankan animasi secara bersamaan
-
-			// Fade Out (Transparan)
-			tween.TweenProperty(this, "modulate:a", 0f, 0.5f)
-				.SetTrans(Tween.TransitionType.Expo)
-				.SetEase(Tween.EaseType.Out);
-
-			// Shrink (Mengecil sampai hilang)
-			tween.TweenProperty(this, "scale", Vector2.Zero, 0.5f)
-				.SetTrans(Tween.TransitionType.Back)
-				.SetEase(Tween.EaseType.In);
-
-			// Putar sedikit (opsional, biar dramatis)
-			tween.TweenProperty(this, "rotation_degrees", 360f, 0.5f);
-
-			// Tunggu animasi selesai
-			await ToSignal(tween, "finished");
-
-			// 3. Hapus Object dari Memory
+			Tween t = CreateTween();
+			t.TweenProperty(this, "modulate:a", 0f, 0.4f);
+			t.TweenProperty(this, "scale", Vector2.Zero, 0.4f);
+			await ToSignal(t, "finished");
 			QueueFree();
 		}
 	}
