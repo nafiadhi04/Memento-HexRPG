@@ -1,14 +1,18 @@
 using Godot;
 
-[GlobalClass]
-public partial class TargetingProfile : Resource
+namespace MementoTest.Core
 {
-	public enum TargetRule
+	[GlobalClass]
+	public partial class TargetingProfile : Resource
 	{
-		Closest,
-		LowestHP,
-		Random
-	}
+		public enum TargetRule
+		{
+			Closest,
+			LowestHP,
+			HighestCombo,
+			Random
+		}
 
-	[Export] public TargetRule Rule;
+		[Export] public TargetRule Rule = TargetRule.Closest;
+	}
 }

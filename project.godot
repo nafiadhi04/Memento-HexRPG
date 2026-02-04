@@ -18,6 +18,7 @@ config/icon="res://icon.svg"
 [autoload]
 
 ScoreManager="*uid://cmphi7an5rjkm"
+AccuracyTracker="*uid://cmsc7evu4sia5"
 
 [display]
 

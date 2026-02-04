@@ -29,6 +29,7 @@ namespace MementoTest.Entities
 
 		[ExportGroup("AI")]
 		[Export] public EnemyAIProfile AiProfile;
+		[Export] public TargetingProfile TargetingProfile;
 
 		/* =======================
 		 * STATE
@@ -81,6 +82,58 @@ namespace MementoTest.Entities
 
 			AddToGroup("Enemy");
 		}
+		private PlayerController SelectTarget()
+		{
+			if (TargetingProfile == null)
+			{
+				GD.PrintErr("[AI] Missing TargetingProfile, fallback to closest target.");
+				return GetClosestPlayer();
+			}
+
+			var players = GetTree()
+				.GetNodesInGroup("Player")
+				.OfType<PlayerController>()
+				.Where(p => GodotObject.IsInstanceValid(p))
+				.ToList();
+
+			if (players.Count == 0)
+			{
+				GD.PrintErr("[AI] No valid player targets found.");
+				return null;
+			}
+
+			return TargetingProfile.Rule switch
+			{
+				TargetingProfile.TargetRule.Closest =>
+					players.OrderBy(p =>
+						GlobalPosition.DistanceTo(p.GlobalPosition)
+					).First(),
+
+				TargetingProfile.TargetRule.LowestHP =>
+					players.OrderBy(p => p.CurrentHP).First(),
+
+				TargetingProfile.TargetRule.Random =>
+					players[_rng.Next(players.Count)],
+
+				_ => players.First()
+			};
+		}
+		private PlayerController GetClosestPlayer()
+		{
+			var players = GetTree()
+				.GetNodesInGroup("Player")
+				.OfType<PlayerController>()
+				.Where(p => GodotObject.IsInstanceValid(p))
+				.ToList();
+
+			if (players.Count == 0)
+				return null;
+
+			return players
+				.OrderBy(p => GlobalPosition.DistanceTo(p.GlobalPosition))
+				.First();
+		}
+
 
 		/* =======================
 		 * TURN ENTRY POINT
@@ -103,6 +156,15 @@ namespace MementoTest.Entities
 				_isExecutingTurn = false;
 				return;
 			}
+			_targetPlayer = SelectTarget();
+
+			if (_targetPlayer == null || AiProfile == null)
+			{
+				GD.PrintErr("[ENEMY] Missing target or AI profile.");
+				return;
+			}
+
+			GD.Print($"[AI] Target selected: {_targetPlayer.Name}");
 
 			await HandleAI();
 
@@ -125,6 +187,7 @@ namespace MementoTest.Entities
 				case EnemyAIProfile.BehaviorType.Kiting:
 					await HandleKiting(gridDist);
 					break;
+					
 			}
 		}
 
@@ -254,7 +317,13 @@ namespace MementoTest.Entities
 				float time = melee ? ReactionTimeMelee : ReactionTimeRanged;
 
 				success = await _hud.WaitForPlayerReaction(word, time);
+
 			}
+
+			if (success)
+				_targetPlayer.TakeDamage(0);
+			else
+				_targetPlayer.TakeDamage(skill.Damage);
 
 			if (!success)
 				_targetPlayer.TakeDamage(skill.Damage);

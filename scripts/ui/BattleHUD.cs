@@ -35,11 +35,15 @@ namespace MementoTest.UI
 		//  Wadah untuk menunggu hasil input player
 		private TaskCompletionSource<bool> _reactionTaskSource;
 
+		private Tween _timerTween;
+
 		private Control _combatPanel;
 		private LineEdit _commandInput;
 		private RichTextLabel _combatLog;
 		private Label _apLabel;
 		private Button _endTurnBtn;
+		private TaskCompletionSource<bool> _reactionTcs;
+		private bool _isWaitingReaction = false;
 
 		public override void _Ready()
 		{
@@ -135,48 +139,107 @@ namespace MementoTest.UI
 		}
 
 		// --- FUNGSI UTAMA (DIPANGGIL MUSUH) ---
-		public async Task<bool> WaitForPlayerReaction(string commandWord, float duration)
+		public async Task<bool> WaitForPlayerReaction(string expectedWord, float timeLimit)
 		{
-			// 1. Reset State
+			// =============================
+			// 1. RESET STATE TOTAL
+			// =============================
 			_isReactionPhase = true;
-			_expectedReactionWord = commandWord.ToLower();
+			_expectedReactionWord = expectedWord.ToLower();
 
-			// [FIX] Buat Task baru untuk ditunggu
-			_reactionTaskSource = new TaskCompletionSource<bool>();
-
-			// 2. Tampilkan UI
-			ShowCombatPanel(true);
-			if (ReactionPanel != null)
+			// Cancel task lama (jaga-jaga)
+			if (_reactionTaskSource != null && !_reactionTaskSource.Task.IsCompleted)
 			{
-				ReactionPanel.Visible = true;
-				if (ReactionPromptLabel != null) ReactionPromptLabel.Text = $"TYPE: {commandWord.ToUpper()}!";
-				if (ReactionTimerBar != null)
-				{
-					ReactionTimerBar.MaxValue = duration;
-					ReactionTimerBar.Value = duration;
-				}
+				_reactionTaskSource.TrySetResult(false);
 			}
 
-			// Bersihkan Input & Fokus
+			_reactionTaskSource = new TaskCompletionSource<bool>();
+
+			// Kill timer tween lama
+			if (_timerTween != null && _timerTween.IsValid())
+				_timerTween.Kill();
+
+			// =============================
+			// 2. SETUP UI
+			// =============================
+			ShowCombatPanel(true);
+
+			if (ReactionPanel == null)
+			{
+				GD.PrintErr("[HUD] ReactionPanel NULL!");
+				return false;
+			}
+
+			ReactionPanel.Visible = true;
+
+			if (ReactionPromptLabel != null)
+			{
+				ReactionPromptLabel.Text = $"TYPE: {expectedWord.ToUpper()}!";
+			}
+
+			if (ReactionTimerBar != null)
+			{
+				ReactionTimerBar.MaxValue = timeLimit;
+				ReactionTimerBar.Value = timeLimit;
+
+				_timerTween = CreateTween();
+				_timerTween.TweenProperty(
+					ReactionTimerBar,
+					"value",
+					0,
+					timeLimit
+				).SetTrans(Tween.TransitionType.Linear);
+
+				_timerTween.TweenCallback(Callable.From(() =>
+				{
+					GD.Print("[HUD] REACTION TIMEOUT");
+					FailReaction("TIMEOUT");
+				}));
+			}
+
+			// =============================
+			// 3. FORCE INPUT READY
+			// =============================
+			if (_commandInput != null)
+			{
+				_commandInput.Visible = true;
+				_commandInput.Editable = true;
+				_commandInput.Clear();
+
+				// PENTING: tunggu 1 frame agar UI siap
+				await ToSignal(GetTree(), "process_frame");
+
+				_commandInput.GrabFocus();
+				GD.Print($"[HUD] Input Focus FORCED. Owner: {_commandInput.Name}");
+			}
+
+			GD.Print($"[HUD] WAITING INPUT: '{expectedWord}'");
+
+			// =============================
+			// 4. WAIT RESULT
+			// =============================
+			bool result = await _reactionTaskSource.Task;
+
+			// =============================
+			// 5. CLEANUP (WAJIB)
+			// =============================
+			_isReactionPhase = false;
+
+			if (_timerTween != null && _timerTween.IsValid())
+				_timerTween.Kill();
+
+			if (ReactionPanel != null)
+				ReactionPanel.Visible = false;
+
 			if (_commandInput != null)
 			{
 				_commandInput.Clear();
-				_commandInput.GrabFocus();
+				_commandInput.ReleaseFocus();
 			}
-
-			GD.Print($"[HUD] WAITING INPUT: '{commandWord}'");
-
-			// 3. TUNGGU DI SINI SAMPAI ADA HASIL (Anti-Deadlock)
-			// Script akan pause di baris ini sampai _reactionTaskSource di-isi nilainya
-			bool result = await _reactionTaskSource.Task;
-
-			// 4. Selesai -> Bersihkan UI
-			_isReactionPhase = false;
-			if (ReactionPanel != null) ReactionPanel.Visible = false;
-			if (_commandInput != null) _commandInput.Clear();
 
 			return result;
 		}
+
 
 		// --- INPUT HANDLER ---
 		private void OnCommandEntered(string text)
@@ -292,6 +355,28 @@ namespace MementoTest.UI
 				}
 			}
 		}
+
+		private void CompleteReaction(bool success)
+		{
+			if (!_reactionTcs.Task.IsCompleted)
+			{
+				_reactionTcs.SetResult(success);
+			}
+		}
+
+		private void ForceCancelReaction()
+		{
+			if (_reactionTcs != null && !_reactionTcs.Task.IsCompleted)
+			{
+				_reactionTcs.SetResult(false);
+			}
+
+			_isWaitingReaction = false;
+			_commandInput.Text = "";
+			_commandInput.ReleaseFocus();
+		}
+
+
 		public async void EnablePlayerInput()
 		{
 			if (_combatPanel != null)

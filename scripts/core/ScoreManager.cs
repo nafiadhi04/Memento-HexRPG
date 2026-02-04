@@ -12,6 +12,8 @@ namespace MementoTest.Core
         public int CurrentScore { get; private set; } = 0;
         public int CurrentCombo { get; private set; } = 0;
         public int MaxCombo { get; private set; } = 0;
+        public int GetCurrentCombo() => CurrentCombo;
+
 
         // Signals untuk update UI
         [Signal] public delegate void ScoreUpdatedEventHandler(int newScore);

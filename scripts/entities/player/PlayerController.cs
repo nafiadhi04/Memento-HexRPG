@@ -23,6 +23,8 @@ namespace MementoTest.Entities
 
 		// State Variables
 		private int _currentHP;
+		public int CurrentHP => _currentHP;
+
 		private int _currentAP;
 		private bool _isMoving = false;
 		private bool _isAttacking = false;
@@ -313,6 +315,7 @@ namespace MementoTest.Entities
 		}
 
 		// --- TURN & STATUS ---
+		
 		private void OnPlayerTurnStart()
 		{
 			_currentAP = Math.Min(_currentAP + TurnStartBaseRegen, MaxAP);
