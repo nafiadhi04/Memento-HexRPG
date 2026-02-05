@@ -31,6 +31,10 @@ namespace MementoTest.Entities
 		[Export] public EnemyAIProfile AiProfile;
 		[Export] public TargetingProfile TargetingProfile;
 
+		[ExportGroup("Scoring")]
+		[Export] public SpeedBonusProfile SpeedBonusProfile;
+
+
 		/* =======================
 		 * STATE
 		 * ======================= */
@@ -276,6 +280,8 @@ namespace MementoTest.Entities
 
 			var skill = usableSkills[_rng.Next(usableSkills.Count)];
 			await PerformSkill(skill);
+
+			
 		}
 
 		private async Task TryAttackPixel()
@@ -331,6 +337,23 @@ namespace MementoTest.Entities
 			Tween back = CreateTween();
 			back.TweenProperty(this, "global_position", startPos, 0.2f);
 			await ToSignal(back, "finished");
+
+			if (success)
+			{
+				_targetPlayer.TakeDamage(0);
+
+				if (SpeedBonusProfile != null && _hud != null)
+				{
+					float reactionTime = _hud.LastReactionTime;
+					int bonus = SpeedBonusProfile.CalculateBonus(reactionTime);
+
+					if (bonus > 0)
+					{
+						ScoreManager.Instance?.AddScore(bonus);
+						GD.Print($"[SPEED BONUS] +{bonus} ({reactionTime:0.00}s)");
+					}
+				}
+			}
 
 			_isAttacking = false;
 		}

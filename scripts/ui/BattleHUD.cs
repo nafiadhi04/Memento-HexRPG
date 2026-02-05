@@ -44,6 +44,9 @@ namespace MementoTest.UI
 		private Button _endTurnBtn;
 		private TaskCompletionSource<bool> _reactionTcs;
 		private bool _isWaitingReaction = false;
+		private double _reactionStartTime;
+		public float LastReactionTime { get; private set; }
+
 
 		public override void _Ready()
 		{
@@ -215,6 +218,9 @@ namespace MementoTest.UI
 
 			GD.Print($"[HUD] WAITING INPUT: '{expectedWord}'");
 
+			_reactionStartTime = Time.GetUnixTimeFromSystem();
+
+
 			// =============================
 			// 4. WAIT RESULT
 			// =============================
@@ -245,6 +251,8 @@ namespace MementoTest.UI
 		private void OnCommandEntered(string text)
 		{
 			string cleanText = text.Trim().ToLower();
+			double now = Time.GetUnixTimeFromSystem();
+			LastReactionTime = (float)(now - _reactionStartTime);
 
 			// Skenario 1: Fase Reaksi (Dodge/Parry)
 			if (_isReactionPhase)

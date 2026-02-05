@@ -4,7 +4,12 @@
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_yfmsl"]
 [ext_resource type="Resource" uid="uid://b5gbtl5hk1yxv" path="res://resources/commands/enemymovelist/headbutt.tres" id="2_c8ylr"]
 [ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_pm80n"]
+[ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="4_20lqd"]
 [ext_resource type="PackedScene" uid="uid://cxuxljpyebawn" path="res://scenes/ui/enemy_health_bar.tscn" id="5_gflvi"]
+
+[sub_resource type="Resource" id="Resource_j3iiu"]
+script = ExtResource("4_20lqd")
+metadata/_custom_type_script = "uid://b6mw2ys38apry"
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_essrt"]
 height = 119.999985
@@ -17,6 +22,7 @@ SkillList = Array[Object]([ExtResource("2_c8ylr")])
 ReactionTimeMelee = 5.0
 ReactionTimeRanged = 5.0
 DamagePopupScene = ExtResource("3_pm80n")
+SpeedBonusProfile = SubResource("Resource_j3iiu")
 
 [node name="Sprite2D" type="Sprite2D" parent="." unique_id=630790635]
 modulate = Color(1, 0.3, 0.3, 1)
