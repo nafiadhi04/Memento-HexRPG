@@ -182,6 +182,18 @@ region = Rect2(192, 128, 32, 32)
 atlas = ExtResource("4_bjvvg")
 region = Rect2(224, 128, 32, 32)
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_4i2ba"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(480, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_kvkt1"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(512, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_f8tja"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(544, 32, 32, 32)
+
 [sub_resource type="AtlasTexture" id="AtlasTexture_aro4e"]
 atlas = ExtResource("4_bjvvg")
 region = Rect2(576, 0, 32, 32)
@@ -499,7 +511,7 @@ animations = [{
 }],
 "loop": true,
 "name": &"attack_melee_down",
-"speed": 5.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -568,6 +580,20 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_4i2ba")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_kvkt1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_f8tja")
+}],
+"loop": true,
+"name": &"attack_unarmed_down_right",
+"speed": 5.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_bumth")
 }, {
 "duration": 1.0,
@@ -618,9 +644,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_dbfl8")
 }],
-"loop": true,
+"loop": false,
 "name": &"hurt_down",
-"speed": 5.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -632,9 +658,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_blb0q")
 }],
-"loop": true,
+"loop": false,
 "name": &"hurt_left",
-"speed": 5.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -646,9 +672,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_6iddq")
 }],
-"loop": true,
+"loop": false,
 "name": &"hurt_right",
-"speed": 5.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -660,9 +686,9 @@ animations = [{
 "duration": 1.0,
 "texture": SubResource("AtlasTexture_tmq5j")
 }],
-"loop": true,
+"loop": false,
 "name": &"hurt_up",
-"speed": 5.0
+"speed": 7.0
 }, {
 "frames": [{
 "duration": 1.0,
@@ -845,13 +871,12 @@ animations = [{
 height = 119.999985
 
 [node name="Player" type="CharacterBody2D" unique_id=1206653042 node_paths=PackedStringArray("Sprite") groups=["Player"]]
-z_index = 10
+z_index = 11
 scale = Vector2(0.1, 0.1)
 input_pickable = true
 motion_mode = 1
 script = ExtResource("1_635qg")
 MaxAP = 100
-TurnStartBaseRegen = 0
 SkillList = Array[Object]([ExtResource("2_nh4ur")])
 DamagePopupScene = ExtResource("3_bjvvg")
 Sprite = NodePath("AnimatedSprite2D")
@@ -860,8 +885,7 @@ Sprite = NodePath("AnimatedSprite2D")
 position = Vector2(0, 60)
 scale = Vector2(10, 10)
 sprite_frames = SubResource("SpriteFrames_tswhv")
-animation = &"attack_magic_up"
-frame_progress = 0.2002977
+animation = &"attack_melee_down"
 
 [node name="GameCamera" type="Camera2D" parent="." unique_id=592137219]
 position_smoothing_enabled = true

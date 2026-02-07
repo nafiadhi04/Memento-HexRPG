@@ -23,6 +23,8 @@ namespace MementoTest.Entities
 		[Export] public PackedScene DamagePopupScene;
 
 		[Export] public AnimatedSprite2D Sprite;
+		[Export] public PackedScene ArrowProjectile;
+		[Export] public PackedScene MagicProjectile;
 
 
 		// State Variables
@@ -40,7 +42,12 @@ namespace MementoTest.Entities
 		private BattleHUD _hud;
 		private EnemyController _targetEnemy;
 		private Tween _activeTween;
-		private Dictionary<string, (int Cost, int Damage)> _skillDatabase;
+		private Dictionary<string, PlayerSkill> _skillDatabase;
+		private Vector2 _lastLookDir = Vector2.Down;
+		private bool _isHurt = false;
+
+
+
 
 		public override void _Ready()
 		{
@@ -52,14 +59,13 @@ namespace MementoTest.Entities
 			AddToGroup("Player");
 
 			// Setup Database Skill
-			_skillDatabase = new Dictionary<string, (int, int)>();
-			if (SkillList != null)
+			_skillDatabase = new Dictionary<string, PlayerSkill>();
+
+			foreach (var skill in SkillList)
 			{
-				foreach (var skill in SkillList)
-				{
-					_skillDatabase[skill.CommandName.ToLower()] = (skill.ApCost, skill.Damage);
-				}
+				_skillDatabase[skill.CommandName.ToLower()] = skill;
 			}
+
 
 			_currentHP = MaxHP;
 			_currentAP = MaxAP;
@@ -80,6 +86,8 @@ namespace MementoTest.Entities
 				_hud.CommandSubmitted += ExecuteCombatCommand;
 				_hud.UpdateAP(_currentAP, MaxAP);
 			}
+			
+
 
 			// Snap posisi awal (Tunggu 1 frame biar aman)
 			CallDeferred(nameof(SnapToNearestGrid));
@@ -87,10 +95,12 @@ namespace MementoTest.Entities
 
 		public override void _Process(double delta)
 		{
-			if (_isMoving) return;
+			if (_isMoving || _isAttacking || _isHurt) return; // ⬅️ INI KUNCINYA
 
-			Vector2 dir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
-			string suffix = GetDirectionSuffix(dir);
+
+
+			_lastLookDir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
+			string suffix = GetDirectionSuffix(_lastLookDir);
 
 			string anim = $"idle_{suffix}";
 			if (Sprite.Animation != anim)
@@ -278,10 +288,10 @@ namespace MementoTest.Entities
 			{
 				var skill = _skillDatabase[command];
 
-				if (_currentAP >= skill.Cost)
+				if (_currentAP >= skill.ApCost)
 				{
 					// 1. Kurangi AP & Regen
-					_currentAP -= skill.Cost;
+					_currentAP -= skill.ApCost;
 					_currentAP = Math.Min(_currentAP + SuccessRegenAP, MaxAP); // Regen + Cap Max
 					_hud?.UpdateAP(_currentAP, MaxAP);
 
@@ -292,11 +302,12 @@ namespace MementoTest.Entities
 					ScoreManager.Instance?.AddScore(100);
 
 					// 3. Eksekusi Serangan (Animasi & Damage)
-					await PerformAttackAnimation(skill.Damage);
+					await PerformAttackAnimation(skill.Damage, skill.AttackType);
+
 				}
 				else
 				{
-					_hud?.LogToTerminal($"ERROR: NEED {skill.Cost} AP.", Colors.Red);
+					_hud?.LogToTerminal($"ERROR: NEED {skill.ApCost} AP.", Colors.Red);
 					// (Opsional) Tidak reset combo kalau cuma kurang AP, tapi terserah desain game-mu
 				}
 			}
@@ -316,43 +327,135 @@ namespace MementoTest.Entities
 			}
 		}
 
-		private async Task PerformAttackAnimation(int damage)
+		private async Task PerformAttackAnimation(int damage, AttackType attackType)
 		{
 			_isAttacking = true;
 
-			Vector2 originalPos = GlobalPosition;
-			Vector2 targetPos = _targetEnemy.GlobalPosition;
-			Vector2 direction = (targetPos - originalPos).Normalized();
-			Vector2 lungePos = originalPos + (direction * 40f); // Maju sedikit
+			Vector2 origin = GlobalPosition;
 
-			// Animasi Maju Pukul
-			if (_activeTween != null && _activeTween.IsValid()) _activeTween.Kill();
-			_activeTween = CreateTween();
+			// Arah menghadap terakhir (sudah kamu pakai di idle)
+			Vector2 dir = _lastLookDir.Normalized();
+			string suffix = GetDirectionSuffix(dir);
 
-			// 1. Mundur dikit (ancang-ancang)
-			_activeTween.TweenProperty(this, "global_position", originalPos - (direction * 10f), 0.1f);
-
-			// 2. Maju Cepat (Hit)
-			_activeTween.TweenProperty(this, "global_position", lungePos, 0.1f)
-						.SetTrans(Tween.TransitionType.Back).SetEase(Tween.EaseType.Out);
-
-			await ToSignal(_activeTween, "finished");
-
-			// IMPACT
-			if (GodotObject.IsInstanceValid(_targetEnemy))
+			// ================================
+			// 1. PILIH ANIMASI ATTACK
+			// ================================
+			string animName = attackType switch
 			{
-				_targetEnemy.TakeDamage(damage);
+				AttackType.Melee => $"attack_melee_{suffix}",
+				AttackType.Unarmed => $"attack_unarmed_{suffix}",
+				_ => $"attack_unarmed_{suffix}"
+			};
+
+			if (Sprite.SpriteFrames.HasAnimation(animName))
+			{
+				Sprite.Play(animName);
+			}
+			else
+			{
+				GD.PrintErr($"[ANIM ERROR] Missing animation: {animName}");
 			}
 
-			// 3. Kembali ke posisi asal
-			_activeTween = CreateTween();
-			_activeTween.TweenProperty(this, "global_position", originalPos, 0.2f);
+			// ================================
+			// 2. LUNGE (Melee / Unarmed)
+			// ================================
+			if (attackType == AttackType.Melee || attackType == AttackType.Unarmed)
+			{
+				Vector2 lungePos = origin + dir * 30f;
 
-			await ToSignal(_activeTween, "finished");
+				_activeTween?.Kill();
+				_activeTween = CreateTween();
+
+				// ancang-ancang
+				_activeTween.TweenProperty(this, "global_position", origin - dir * 10f, 0.08f);
+
+				// maju serang
+				_activeTween.TweenProperty(this, "global_position", lungePos, 0.12f)
+					.SetEase(Tween.EaseType.Out)
+					.SetTrans(Tween.TransitionType.Back);
+
+				await ToSignal(_activeTween, "finished");
+
+				if (GodotObject.IsInstanceValid(_targetEnemy))
+					_targetEnemy.TakeDamage(damage);
+
+				// kembali
+				_activeTween = CreateTween();
+				_activeTween.TweenProperty(this, "global_position", origin, 0.2f);
+				await ToSignal(_activeTween, "finished");
+			}
+
+
+			// =========================
+			// RANGED (BOW / MAGIC)
+			// =========================
+			else
+			{
+				string anim = attackType == AttackType.RangedBow
+					? "attack_bow"
+					: "attack_magic";
+
+				Sprite.Play(anim);
+
+				await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished);
+
+				SpawnProjectile(
+					attackType,
+					damage,
+					dir
+				);
+			}
+
+			// ================================
+			// 3. KEMBALI KE IDLE SESUAI ARAH
+			// ================================
+			string idleAnim = $"idle_{suffix}";
+			if (Sprite.SpriteFrames.HasAnimation(idleAnim))
+			{
+				Sprite.Play(idleAnim);
+			}
 
 			_isAttacking = false;
 			await EndCombatSession("TARGET HIT.");
 		}
+
+		private void SpawnProjectile(
+	AttackType type,
+	int damage,
+	Vector2 direction
+)
+		{
+			PackedScene scene =
+				type == AttackType.RangedBow
+				? ArrowProjectile
+				: MagicProjectile;
+
+			if (scene == null) return;
+
+			var projectile = scene.Instantiate<Node2D>();
+			GetTree().CurrentScene.AddChild(projectile);
+
+			projectile.GlobalPosition = GlobalPosition + direction * 16f;
+
+			if (projectile is IProjectile p)
+			{
+				p.Launch(direction, damage, _targetEnemy);
+			}
+		}
+		public interface IProjectile
+		{
+			void Launch(Vector2 direction, int damage, Node target);
+		}
+
+		private void FaceDirection(Vector2 dir)
+		{
+			if (Mathf.Abs(dir.X) > Mathf.Abs(dir.Y))
+			{
+				Sprite.FlipH = dir.X < 0;
+			}
+		}
+
+
 
 		private async Task EndCombatSession(string message)
 		{
@@ -399,6 +502,7 @@ namespace MementoTest.Entities
 			ShowDamagePopup(damage);
 
 			_hud?.UpdateHP(_currentHP, MaxHP);
+			PlayHurtAnimation();
 
 			// Efek Merah
 			Modulate = Colors.Red;
@@ -411,6 +515,35 @@ namespace MementoTest.Entities
 
 			if (_currentHP <= 0) Die();
 		}
+
+		private async void PlayHurtAnimation()
+		{
+			if (_isHurt || _isAttacking) return;
+
+			_isHurt = true;
+
+			// Pakai arah terakhir (mouse / movement)
+			string suffix = GetDirectionSuffix(_lastLookDir);
+			string anim = $"hurt_{suffix}";
+
+			if (Sprite.SpriteFrames.HasAnimation(anim))
+			{
+				Sprite.Play(anim);
+				await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished);
+			}
+			else
+			{
+				GD.PrintErr($"[ANIM ERROR] Missing animation: {anim}");
+			}
+
+			_isHurt = false;
+
+			// Balik ke idle
+			string idleAnim = $"idle_{suffix}";
+			if (Sprite.SpriteFrames.HasAnimation(idleAnim))
+				Sprite.Play(idleAnim);
+		}
+
 
 		private void ShowDamagePopup(int amount)
 		{

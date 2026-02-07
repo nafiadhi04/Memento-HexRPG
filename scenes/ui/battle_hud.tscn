@@ -40,8 +40,8 @@ outline_color = Color(0, 0, 0, 1)
 
 [node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar")]
 script = ExtResource("1_dy3po")
-ScoreLabel = NodePath("ScoreLabel")
-ComboLabel = NodePath("ComboLabel")
+ScoreLabel = NodePath("Control/ScoreLabel")
+ComboLabel = NodePath("Control/ComboLabel")
 ReactionPanel = NodePath("ReactionPanel")
 ReactionPromptLabel = NodePath("ReactionPanel/VboxContainer/ReactionPromptLabel")
 ReactionTimerBar = NodePath("ReactionPanel/VboxContainer/ReactionTimerBar")
@@ -81,6 +81,28 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
+
+[node name="ComboLabel" type="Label" parent="Control" unique_id=744383370]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -174.0
+offset_top = 12.0
+offset_right = -14.0
+offset_bottom = 35.0
+grow_horizontal = 0
+
+[node name="ScoreLabel" type="Label" parent="Control" unique_id=1072409048]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -167.0
+offset_top = 45.0
+offset_right = -7.0
+offset_bottom = 68.0
+grow_horizontal = 0
 
 [node name="HPBar" type="ProgressBar" parent="Control" unique_id=258145136]
 layout_mode = 1
@@ -153,23 +175,3 @@ tab_size = 15
 
 [node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer" unique_id=1274233966]
 layout_mode = 2
-
-[node name="ScoreLabel" type="Label" parent="." unique_id=1072409048]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -167.0
-offset_top = 45.0
-offset_right = -7.0
-offset_bottom = 68.0
-grow_horizontal = 0
-
-[node name="ComboLabel" type="Label" parent="." unique_id=744383370]
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -174.0
-offset_top = 12.0
-offset_right = -14.0
-offset_bottom = 35.0
-grow_horizontal = 0

@@ -70,6 +70,8 @@ namespace MementoTest.UI
 
 		public override void _Ready()
 		{
+			GD.Print($"[HUD] Score visible: {ScoreLabel.Visible}");
+
 			if (ReactionPanel != null)
 				ReactionPanel.Visible = false;
 
@@ -104,6 +106,8 @@ namespace MementoTest.UI
 			// Optional safety
 			_commandInput.Editable = true;
 			_commandInput.MouseFilter = Control.MouseFilterEnum.Stop;
+
+			CallDeferred("ConnectToScoreManager");
 
 			GD.Print("[HUD] BattleHUD Ready - Input connected ONCE");
 		}

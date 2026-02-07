@@ -13,13 +13,13 @@ namespace MementoTest.Resources
 	[GlobalClass]
 	public partial class PlayerSkill : Resource
 	{
-		[Export] public string CommandName { get; set; } = "ping";
+		[Export] public string CommandName { get; set; } = "attack";
 		[Export] public int ApCost { get; set; } = 2;
 		[Export] public int Damage { get; set; } = 10;
 
 		[Export] public AttackType AttackType { get; set; } = AttackType.Unarmed;
 
-		// Hanya dipakai untuk ranged
+		// Untuk bow & magic
 		[Export] public PackedScene ProjectileScene;
 
 		[Export(PropertyHint.MultilineText)]
