@@ -12,11 +12,14 @@ script = ExtResource("4_20lqd")
 metadata/_custom_type_script = "uid://b6mw2ys38apry"
 
 [sub_resource type="CapsuleShape2D" id="CapsuleShape2D_essrt"]
+radius = 20.000004
 height = 119.999985
 
 [node name="Enemy" type="CharacterBody2D" unique_id=584458365 groups=["Enemy", "EnemyGroup"]]
 z_index = 10
 scale = Vector2(0.1, 0.1)
+collision_layer = 3
+collision_mask = 9
 script = ExtResource("1_essrt")
 SkillList = Array[Object]([ExtResource("2_c8ylr")])
 ReactionTimeMelee = 5.0
@@ -30,7 +33,7 @@ position = Vector2(0, 60)
 texture = ExtResource("1_yfmsl")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1318861657]
-position = Vector2(8.526506e-14, 89.99999)
+position = Vector2(1.9895203e-13, 60)
 rotation = 1.5707964
 scale = Vector2(3, 1)
 shape = SubResource("CapsuleShape2D_essrt")

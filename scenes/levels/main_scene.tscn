@@ -11,6 +11,7 @@
 [ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="5_jtcbb"]
 [ext_resource type="Script" uid="uid://b4ofm18pb8w1g" path="res://scripts/core/AreaTracker.cs" id="6_8hc5g"]
 [ext_resource type="PackedScene" uid="uid://qo415ne0pan2" path="res://scenes/levels/locked_area.tscn" id="6_fiowe"]
+[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectile.tscn" id="7_jtcbb"]
 [ext_resource type="Script" uid="uid://c556nbxe4u3h7" path="res://scripts/core/battle/EnemyAIProfile.cs" id="9_iusvx"]
 [ext_resource type="Script" uid="uid://ddqwc7dhlg7n3" path="res://scripts/core/battle/TargetingProfile.cs" id="10_p61ap"]
 [ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="11_df41j"]
@@ -19,6 +20,13 @@
 script = ExtResource("5_jtcbb")
 CommandName = "slash"
 AttackType = 1
+metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
+
+[sub_resource type="Resource" id="Resource_3jqmn"]
+script = ExtResource("5_jtcbb")
+CommandName = "arrow"
+AttackType = 2
+ProjectileScene = ExtResource("7_jtcbb")
 metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
 
 [sub_resource type="Resource" id="Resource_p61ap"]
@@ -40,6 +48,8 @@ metadata/_custom_type_script = "uid://b6mw2ys38apry"
 [node name="Main Scene" type="Node2D" unique_id=1483603412]
 script = ExtResource("1_brv2t")
 
+[node name="Projectile" parent="." unique_id=1105907238 instance=ExtResource("7_jtcbb")]
+
 [node name="BattleHUD" parent="." unique_id=682286073 groups=["HUD"] instance=ExtResource("5_43vid")]
 layer = 2
 
@@ -51,7 +61,7 @@ z_index = 1
 z_index = 20
 position = Vector2(-57.99997, 32)
 MaxHP = 50
-SkillList = Array[Object]([ExtResource("4_84bhp"), SubResource("Resource_x7kll")])
+SkillList = Array[Object]([ExtResource("4_84bhp"), SubResource("Resource_x7kll"), SubResource("Resource_3jqmn")])
 
 [node name="TurnManager" type="Node2D" parent="." unique_id=593327911]
 script = ExtResource("4_q46b8")

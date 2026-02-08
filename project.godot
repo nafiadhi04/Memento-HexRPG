@@ -40,6 +40,13 @@ Player=""
 Enemy=""
 HUD=""
 
+[layer_names]
+
+2d_render/layer_2="Enemy"
+2d_render/layer_4="Projectile"
+2d_physics/layer_2="Enemy"
+2d_physics/layer_4="Projectile"
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

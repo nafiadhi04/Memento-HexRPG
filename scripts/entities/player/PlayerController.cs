@@ -23,8 +23,12 @@ namespace MementoTest.Entities
 		[Export] public PackedScene DamagePopupScene;
 
 		[Export] public AnimatedSprite2D Sprite;
-		[Export] public PackedScene ArrowProjectile;
-		[Export] public PackedScene MagicProjectile;
+		[Export] private PackedScene BowProjectileScene;
+		[Export] private PackedScene MagicProjectileScene;
+		[Export]
+		private PackedScene _projectileScene;
+
+
 
 
 		// State Variables
@@ -35,6 +39,8 @@ namespace MementoTest.Entities
 		private bool _isMoving = false;
 		private bool _isAttacking = false;
 		private Vector2I _currentGridPos;
+		private bool _isTargetLocked = false;
+		private Vector2 _lockedLookDir = Vector2.Right;
 
 		// References
 		private MapManager _mapManager;
@@ -45,6 +51,13 @@ namespace MementoTest.Entities
 		private Dictionary<string, PlayerSkill> _skillDatabase;
 		private Vector2 _lastLookDir = Vector2.Down;
 		private bool _isHurt = false;
+		Vector2 _moveDir;
+		Vector2 _lookDir;
+		private Vector2 _facingDir = Vector2.Down; // default
+		private bool _lockFacing = false;
+		private Vector2 _lockedAttackDir;
+
+
 
 
 
@@ -86,7 +99,7 @@ namespace MementoTest.Entities
 				_hud.CommandSubmitted += ExecuteCombatCommand;
 				_hud.UpdateAP(_currentAP, MaxAP);
 			}
-			
+
 
 
 			// Snap posisi awal (Tunggu 1 frame biar aman)
@@ -95,17 +108,43 @@ namespace MementoTest.Entities
 
 		public override void _Process(double delta)
 		{
-			if (_isMoving || _isAttacking || _isHurt) return; // ⬅️ INI KUNCINYA
+			if (_isMoving || _isAttacking || _isHurt)
+				return;
 
+	if (_lockFacing)
+    {
+        _lookDir = _lockedAttackDir;
+    }
+			if (_isTargetLocked && !GodotObject.IsInstanceValid(_targetEnemy))
+			{
+				_isTargetLocked = false;
+				_targetEnemy = null;
+			}
 
+			if (_isTargetLocked && GodotObject.IsInstanceValid(_targetEnemy))
+			{
+				Vector2 rawDir = _targetEnemy.GlobalPosition - GlobalPosition;
+				_lookDir = QuantizeDirection8(rawDir);
+			}
+			else
+			{
+				Vector2 rawDir = GetGlobalMousePosition() - GlobalPosition;
+				_lookDir = QuantizeDirection8(rawDir);
+			}
+			_facingDir = _lookDir;
 
+			string suffix = GetDirectionSuffix(_lookDir);
 			_lastLookDir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
-			string suffix = GetDirectionSuffix(_lastLookDir);
 
-			string anim = $"idle_{suffix}";
-			if (Sprite.Animation != anim)
-				Sprite.Play(anim);
+			string idleAnim = $"idle_{suffix}";
+
+			if (Sprite.Animation != idleAnim)
+				Sprite.Play(idleAnim);
 		}
+
+
+
+
 
 		private void SnapToNearestGrid()
 		{
@@ -117,6 +156,21 @@ namespace MementoTest.Entities
 
 			GD.Print($"[PLAYER] Ready at Grid: {_currentGridPos}");
 		}
+
+		private Vector2 QuantizeDirection8(Vector2 dir)
+		{
+			if (dir == Vector2.Zero)
+				return Vector2.Down;
+
+			dir = dir.Normalized();
+
+			float angle = Mathf.Atan2(dir.Y, dir.X);
+			float step = Mathf.Pi / 4f; // 45 derajat
+			angle = Mathf.Round(angle / step) * step;
+
+			return new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)).Normalized();
+		}
+
 
 		// --- INPUT HANDLING (SATPAM) ---
 		public override void _Input(InputEvent @event)
@@ -132,6 +186,12 @@ namespace MementoTest.Entities
 				if (_turnManager?.CurrentTurn != TurnManager.TurnState.Player) return;
 				if (_isMoving || _isAttacking) return;
 				if (_currentHP <= 0) return;
+
+				if (@event.IsActionPressed("ui_accept")) // Enter / Space
+				{
+					Vector2 dir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
+					SpawnProjectile(AttackType.RangedBow, 10, dir);
+				}
 
 				CheckEnemyClick();
 			}
@@ -170,6 +230,31 @@ namespace MementoTest.Entities
 			}
 		}
 
+		private string GetDirectionSuffixCombat(Vector2 dir)
+		{
+			dir = dir.Normalized();
+
+			const float DIAG = 0.25f; // 🔑 lebih kecil dari 0.5
+
+			if (dir.Y < -DIAG)
+			{
+				if (dir.X < -DIAG) return "up_left";
+				if (dir.X > DIAG) return "up_right";
+				return "up";
+			}
+			else if (dir.Y > DIAG)
+			{
+				if (dir.X < -DIAG) return "down_left";
+				if (dir.X > DIAG) return "down_right";
+				return "down";
+			}
+			else
+			{
+				if (dir.X < 0) return "left";
+				return "right";
+			}
+		}
+
 		private void CheckEnemyClick()
 		{
 			Vector2 mousePos = GetGlobalMousePosition();
@@ -184,28 +269,49 @@ namespace MementoTest.Entities
 
 			var result = spaceState.IntersectPoint(query);
 
+			// ============================
+			// 1. KLIK ENEMY
+			// ============================
 			if (result.Count > 0)
 			{
 				Node collider = (Node)result[0]["collider"];
 
-				// Jika Klik Musuh
+
 				if (collider is EnemyController enemy)
 				{
-					// Cek jarak dulu (Opsional: Kalau mau melee only)
-					// if (GlobalPosition.DistanceTo(enemy.GlobalPosition) > 100) { ... }
+					// Klik enemy yang sama → UNLOCK
+					if (_isTargetLocked && _targetEnemy == enemy)
+					{
+						_isTargetLocked = false;
+						_targetEnemy = null;
+						_hud?.ShowCombatPanel(false);
 
+						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
+						return;
+					}
+
+					// Lock / ganti target
 					_targetEnemy = enemy;
+					_isTargetLocked = true;
+
+					_lookDir = (enemy.GlobalPosition - GlobalPosition).Normalized();
+
+
 					_hud?.ShowCombatPanel(true);
 					_hud?.LogToTerminal($"> TARGET LOCKED: {enemy.Name}", Colors.Yellow);
 					return;
 				}
 			}
 
-			// Jika Klik Tanah Kosong -> Jalan
-			_targetEnemy = null;
-			_hud?.ShowCombatPanel(false);
+			// ============================
+			// 2. KLIK TILE / TANAH KOSONG
+			// ============================
+			// ⚠️ JANGAN unlock target di sini
+			// Player tetap bisa jalan meskipun lock
+
 			TryMoveToTile(mousePos);
 		}
+
 
 		// --- MOVEMENT LOGIC ---
 		private async void TryMoveToTile(Vector2 mousePos)
@@ -329,123 +435,149 @@ namespace MementoTest.Entities
 
 		private async Task PerformAttackAnimation(int damage, AttackType attackType)
 		{
+			if (_isAttacking) return;
 			_isAttacking = true;
 
 			Vector2 origin = GlobalPosition;
 
-			// Arah menghadap terakhir (sudah kamu pakai di idle)
-			Vector2 dir = _lastLookDir.Normalized();
-			string suffix = GetDirectionSuffix(dir);
-
-			// ================================
-			// 1. PILIH ANIMASI ATTACK
-			// ================================
-			string animName = attackType switch
+			// ==============================
+			// TENTUKAN ARAH SERANG
+			// ==============================
+			Vector2 attackDir;
+			if (_isTargetLocked && GodotObject.IsInstanceValid(_targetEnemy))
 			{
-				AttackType.Melee => $"attack_melee_{suffix}",
-				AttackType.Unarmed => $"attack_unarmed_{suffix}",
-				_ => $"attack_unarmed_{suffix}"
-			};
-
-			if (Sprite.SpriteFrames.HasAnimation(animName))
-			{
-				Sprite.Play(animName);
+				attackDir = (_targetEnemy.GlobalPosition - GlobalPosition).Normalized();
 			}
 			else
 			{
-				GD.PrintErr($"[ANIM ERROR] Missing animation: {animName}");
+				attackDir = _lookDir;
 			}
 
-			// ================================
-			// 2. LUNGE (Melee / Unarmed)
-			// ================================
-			if (attackType == AttackType.Melee || attackType == AttackType.Unarmed)
-			{
-				Vector2 lungePos = origin + dir * 30f;
+			// 🔑 Sinkronkan arah look
+			_lookDir = attackDir;
 
-				_activeTween?.Kill();
+			string suffix = GetDirectionSuffix(attackDir);
+
+			// Hentikan tween lama (safety)
+			if (_activeTween != null && _activeTween.IsValid())
+				_activeTween.Kill();
+
+			// ==============================
+			// MELEE / UNARMED
+			// ==============================
+			if (attackType == AttackType.Unarmed || attackType == AttackType.Melee)
+			{
+				string animName =
+					attackType == AttackType.Melee
+						? $"attack_melee_{suffix}"
+						: $"attack_unarmed_{suffix}";
+
+				if (Sprite.SpriteFrames.HasAnimation(animName))
+					Sprite.Play(animName);
+				else
+					GD.PrintErr($"[ANIM] Missing: {animName}");
+
+				Vector2 lungePos = origin + attackDir * 40f;
+
 				_activeTween = CreateTween();
 
 				// ancang-ancang
-				_activeTween.TweenProperty(this, "global_position", origin - dir * 10f, 0.08f);
+				_activeTween.TweenProperty(
+					this,
+					"global_position",
+					origin - attackDir * 10f,
+					0.08f
+				);
 
-				// maju serang
-				_activeTween.TweenProperty(this, "global_position", lungePos, 0.12f)
-					.SetEase(Tween.EaseType.Out)
-					.SetTrans(Tween.TransitionType.Back);
+				// maju hit
+				_activeTween.TweenProperty(
+					this,
+					"global_position",
+					lungePos,
+					0.12f
+				)
+				.SetEase(Tween.EaseType.Out)
+				.SetTrans(Tween.TransitionType.Back);
 
-				await ToSignal(_activeTween, "finished");
+				await ToSignal(_activeTween, Tween.SignalName.Finished);
 
 				if (GodotObject.IsInstanceValid(_targetEnemy))
 					_targetEnemy.TakeDamage(damage);
 
-				// kembali
+				// balik ke posisi awal
 				_activeTween = CreateTween();
-				_activeTween.TweenProperty(this, "global_position", origin, 0.2f);
-				await ToSignal(_activeTween, "finished");
+				_activeTween.TweenProperty(this, "global_position", origin, 0.18f);
+				await ToSignal(_activeTween, Tween.SignalName.Finished);
 			}
-
-
-			// =========================
+			// ==============================
 			// RANGED (BOW / MAGIC)
-			// =========================
+			// ==============================
 			else
 			{
-				string anim = attackType == AttackType.RangedBow
-					? "attack_bow"
-					: "attack_magic";
+				Vector2 rangedDir = _facingDir.Normalized();
+				string rangedSuffix = GetDirectionSuffix(rangedDir);
 
-				Sprite.Play(anim);
+				string animName =
+					attackType == AttackType.RangedBow
+						? $"attack_bow_{rangedSuffix}"
+						: $"attack_magic_{rangedSuffix}";
 
-				await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished);
+				if (Sprite.SpriteFrames.HasAnimation(animName))
+				{
+					Sprite.Play(animName);
+					await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished);
+				}
+				else
+				{
+					GD.PrintErr($"[ANIM] Missing: {animName}");
+				}
 
-				SpawnProjectile(
-					attackType,
-					damage,
-					dir
-				);
+				SpawnProjectile(attackType, damage, rangedDir);
 			}
 
-			// ================================
-			// 3. KEMBALI KE IDLE SESUAI ARAH
-			// ================================
+
+
+			// ==============================
+			// KEMBALI KE IDLE
+			// ==============================
 			string idleAnim = $"idle_{suffix}";
 			if (Sprite.SpriteFrames.HasAnimation(idleAnim))
-			{
 				Sprite.Play(idleAnim);
-			}
 
 			_isAttacking = false;
+
 			await EndCombatSession("TARGET HIT.");
 		}
 
-		private void SpawnProjectile(
-	AttackType type,
-	int damage,
-	Vector2 direction
-)
+
+
+		private void SpawnProjectile(AttackType attackType, int damage, Vector2 dir)
 		{
 			PackedScene scene =
-				type == AttackType.RangedBow
-				? ArrowProjectile
-				: MagicProjectile;
+				attackType == AttackType.RangedBow
+					? BowProjectileScene
+					: MagicProjectileScene;
 
-			if (scene == null) return;
+			if (scene == null)
+			{
+				GD.PrintErr("[PROJECTILE] Scene belum di-assign");
+				return;
+			}
 
-			var projectile = scene.Instantiate<Node2D>();
+			var projectile = scene.Instantiate<Projectile>();
+
+			projectile.GlobalPosition = GlobalPosition;
 			GetTree().CurrentScene.AddChild(projectile);
 
-			projectile.GlobalPosition = GlobalPosition + direction * 16f;
+			projectile.Init(
+				damage,
+				dir,
+				_isTargetLocked ? _targetEnemy : null
+			);
+		}
 
-			if (projectile is IProjectile p)
-			{
-				p.Launch(direction, damage, _targetEnemy);
-			}
-		}
-		public interface IProjectile
-		{
-			void Launch(Vector2 direction, int damage, Node target);
-		}
+
+
 
 		private void FaceDirection(Vector2 dir)
 		{
@@ -454,6 +586,18 @@ namespace MementoTest.Entities
 				Sprite.FlipH = dir.X < 0;
 			}
 		}
+		private void UpdateLookDirection()
+		{
+			if (_isTargetLocked && GodotObject.IsInstanceValid(_targetEnemy))
+			{
+				_lookDir = (_targetEnemy.GlobalPosition - GlobalPosition).Normalized();
+			}
+			else
+			{
+				_lookDir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
+			}
+		}
+
 
 
 
@@ -498,47 +642,55 @@ namespace MementoTest.Entities
 
 		public void TakeDamage(int damage)
 		{
+			// === PARRY / BLOCK / MISS ===
+			if (damage <= 0)
+			{
+				ShowDamagePopup(0); // optional (misal "PARRY")
+				return; // ⛔ STOP di sini
+			}
+
+			// === DAMAGE VALID ===
 			_currentHP -= damage;
 			ShowDamagePopup(damage);
 
 			_hud?.UpdateHP(_currentHP, MaxHP);
+
 			PlayHurtAnimation();
 
-			// Efek Merah
 			Modulate = Colors.Red;
 			CreateTween().TweenProperty(this, "modulate", Colors.White, 0.3f);
 
-			if (damage > 0)
-			{
-				ScoreManager.Instance.ResetCombo();
-			}
+			ScoreManager.Instance.ResetCombo();
 
-			if (_currentHP <= 0) Die();
+			if (_currentHP <= 0)
+				Die();
 		}
 
 		private async void PlayHurtAnimation()
 		{
 			if (_isHurt || _isAttacking) return;
+			
+	
 
 			_isHurt = true;
 
-			// Pakai arah terakhir (mouse / movement)
+			// 🔑 PAKAI ARAH HADAP TERAKHIR
 			string suffix = GetDirectionSuffix(_lastLookDir);
-			string anim = $"hurt_{suffix}";
+			string animName = $"hurt_{suffix}";
 
-			if (Sprite.SpriteFrames.HasAnimation(anim))
+			if (Sprite.SpriteFrames.HasAnimation(animName))
 			{
-				Sprite.Play(anim);
+				Sprite.Play(animName);
 				await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished);
 			}
 			else
 			{
-				GD.PrintErr($"[ANIM ERROR] Missing animation: {anim}");
+				GD.PrintErr($"[ANIM ERROR] Missing hurt animation: {animName}");
 			}
 
 			_isHurt = false;
 
-			// Balik ke idle
+			// Balik ke idle sesuai arah terakhir
 			string idleAnim = $"idle_{suffix}";
 			if (Sprite.SpriteFrames.HasAnimation(idleAnim))
 				Sprite.Play(idleAnim);
@@ -566,8 +718,8 @@ namespace MementoTest.Entities
 			SetProcessInput(false); // Matikan input
 		}
 
-		
+
 	}
-	
-	
+
+
 }
