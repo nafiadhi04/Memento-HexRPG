@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using System.Collections.Generic;
 
 namespace MementoTest.Core
 {
@@ -7,25 +8,76 @@ namespace MementoTest.Core
 	{
 		public static MapManager Instance { get; private set; }
 		[Export] public TileMapLayer GameBoard;
+
+		// --- BAGIAN SETTING VISUAL (Editable di Inspector) ---
+		[ExportGroup("Highlight Settings")]
+
+		[ExportSubgroup("Colors")]
+		[Export] public Color MoveHighlightColor = new Color(1, 1, 0, 0.7f); // Kuning
+		[Export] public Color CursorValidColor = new Color(1, 1, 0, 0.8f);   // Kuning Terang
+		[Export] public Color CursorInvalidColor = new Color(1, 0, 0, 0.8f); // Merah
+
+		[ExportSubgroup("Dimensions")]
+		[Export] public float HexWidth = 14.0f;       // Jarak Pusat ke Kanan (w)
+		[Export] public float HexHeight = 12.0f;      // Jarak Pusat ke Bawah (h)
+		[Export] public float HexTopFlat = 7.0f;      // Lebar sisi atas/bawah (m)
+		[Export] public Vector2 VisualOffset = new Vector2(0, 7); // Geser visual agar pas di tengah
+
+		[ExportSubgroup("Style")]
+		[Export] public float LineThickness = 3.0f;
+		[Export(PropertyHint.Range, "0.1, 1.0")]
+		public float NeighborScale = 0.85f;
+		private Vector2 _visualOffset = new Vector2(0, 7);
+
+		private List<Node2D> _activeSelectors = new List<Node2D>();
 		// Variabel untuk Kursor Visual
 		private Line2D _highlightCursor;
 
-		public override void _Ready()
+		private List<Line2D> _activeHighlights = new List<Line2D>();
 
+		private Line2D _mouseCursor; // Ganti nama biar jelas
+
+		public override void _Ready()
 		{
 			Instance = this;
-			GD.Print("MapManager: Grid system initialized.");
 
-			// --- FITUR BARU: Auto-Create Cursor ---
-			CreateHighlightCursor();
+			// Buat cursor mouse (Default scale 1.0f)
+			_mouseCursor = CreateHexLineStyle(CursorValidColor, 1.0f);
+			_mouseCursor.Visible = false;
+			AddChild(_mouseCursor);
 		}
-
 		public override void _Process(double delta)
 		{
-			// --- FITUR BARU: Logic Kursor ---
-			UpdateCursorPosition();
+			UpdateMouseCursor();
 		}
 
+		private Line2D CreateHexLineStyle(Color color, float scale)
+		{
+			Line2D line = new Line2D();
+			line.Width = LineThickness; // Menggunakan variabel export
+			line.DefaultColor = color;
+			line.Closed = true;
+			line.ZIndex = 5;
+
+			// Hitung dimensi berdasarkan Scale
+			float w = HexWidth * scale;
+			float h = HexHeight * scale;
+			float m = HexTopFlat * scale;
+
+			// Titik-titik Hexagon (Flat Top)
+			Vector2[] hexPoints = new Vector2[]
+			{
+				new Vector2(-m, -h),
+				new Vector2(m, -h),
+				new Vector2(w, 0),
+				new Vector2(m, h),
+				new Vector2(-m, h),
+				new Vector2(-w, 0)
+			};
+
+			line.Points = hexPoints;
+			return line;
+		}
 		public Vector2I WorldToGrid(Vector2 worldPos)
 		{
 			if (GameBoard == null)
@@ -167,6 +219,81 @@ namespace MementoTest.Core
 				if (GetNeighborCell(currentCoords, side) == targetCoords) return true;
 			}
 			return false;
+		}
+
+
+		public void ClearMovementOptions()
+		{
+			foreach (var selector in _activeSelectors)
+			{
+				if (GodotObject.IsInstanceValid(selector))
+				{
+					selector.QueueFree();
+				}
+			}
+			_activeSelectors.Clear();
+		}
+
+		// --- LOGIC MOUSE CURSOR ---
+		private void UpdateMouseCursor()
+		{
+			Vector2 mousePos = GetGlobalMousePosition();
+			Vector2I gridPos = GetGridCoordinates(mousePos);
+			int sourceId = GetCellSourceId(gridPos);
+
+			if (sourceId != -1)
+			{
+				_mouseCursor.Visible = true;
+				// Gunakan VisualOffset dari Inspector
+				_mouseCursor.Position = GetSnappedWorldPosition(mousePos) + VisualOffset;
+
+				// Update warna berdasarkan logic (Walkable/Occupied)
+				if (IsTileWalkable(gridPos) && !IsTileOccupied(gridPos))
+					_mouseCursor.DefaultColor = CursorValidColor;
+				else
+					_mouseCursor.DefaultColor = CursorInvalidColor;
+			}
+			else
+			{
+				_mouseCursor.Visible = false;
+			}
+		}
+
+		public void ShowNeighborHighlight(Vector2I centerPos)
+		{
+			ClearHighlight();
+
+			TileSet.CellNeighbor[] neighbors = {
+				TileSet.CellNeighbor.TopSide, TileSet.CellNeighbor.BottomSide,
+				TileSet.CellNeighbor.TopLeftSide, TileSet.CellNeighbor.TopRightSide,
+				TileSet.CellNeighbor.BottomLeftSide, TileSet.CellNeighbor.BottomRightSide
+			};
+
+			foreach (var side in neighbors)
+			{
+				Vector2I neighborGrid = GetNeighborCell(centerPos, side);
+
+				if (IsTileWalkable(neighborGrid) && !IsTileOccupied(neighborGrid))
+				{
+					// Gunakan MoveHighlightColor dan NeighborScale dari Inspector
+					Line2D hexHighlight = CreateHexLineStyle(MoveHighlightColor, NeighborScale);
+
+					// Posisi + VisualOffset dari Inspector
+					hexHighlight.Position = GridToWorld(neighborGrid) + VisualOffset;
+
+					AddChild(hexHighlight);
+					_activeHighlights.Add(hexHighlight);
+				}
+			}
+		}
+
+		public void ClearHighlight()
+		{
+			foreach (var line in _activeHighlights)
+			{
+				if (GodotObject.IsInstanceValid(line)) line.QueueFree();
+			}
+			_activeHighlights.Clear();
 		}
 	}
 }

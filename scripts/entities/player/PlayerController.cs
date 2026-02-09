@@ -175,26 +175,107 @@ namespace MementoTest.Entities
 		// --- INPUT HANDLING (SATPAM) ---
 		public override void _Input(InputEvent @event)
 		{
-			// 1. Cek Mouse Klik Kiri
 			if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
 			{
-				// [PENTING] BLOK INPUT JIKA:
-				// - Bukan giliran Player
-				// - Sedang Animasi Jalan
-				// - Sedang Animasi Serang
-				// - Player Mati
+				// 1. VALIDASI DASAR (Sesuai kode lama Anda)
 				if (_turnManager?.CurrentTurn != TurnManager.TurnState.Player) return;
 				if (_isMoving || _isAttacking) return;
 				if (_currentHP <= 0) return;
 
-				if (@event.IsActionPressed("ui_accept")) // Enter / Space
+				Vector2 mousePos = GetGlobalMousePosition();
+
+				// 2. PRIORITAS 1: CEK ENEMY DULU!
+				// Jika kita berhasil mengklik musuh, hentikan proses (return true)
+				if (TryHandleEnemyClick(mousePos))
 				{
-					Vector2 dir = (GetGlobalMousePosition() - GlobalPosition).Normalized();
-					SpawnProjectile(AttackType.RangedBow, 10, dir);
+					// Bersihkan highlight gerakan jika kita memilih musuh
+					_mapManager?.ClearMovementOptions();
+					return;
 				}
 
-				CheckEnemyClick();
+				// 3. PRIORITAS 2: LOGIKA GRID (Visualisasi & Gerak)
+				if (_mapManager == null) return;
+				Vector2I clickedGrid = _mapManager.GetGridCoordinates(mousePos);
+
+				GD.Print($"[INPUT] Clicked Grid: {clickedGrid}");
+
+				// A. Klik Diri Sendiri -> Tampilkan Range
+				if (clickedGrid == _currentGridPos)
+				{
+					_mapManager.ShowNeighborHighlight(_currentGridPos);
+				}
+				// B. Klik Tetangga Valid -> Bergerak
+				else if (_mapManager.IsNeighbor(_currentGridPos, clickedGrid))
+				{
+					if (_mapManager.IsTileWalkable(clickedGrid) && !_mapManager.IsTileOccupied(clickedGrid))
+					{
+						TryMoveToTile(mousePos);
+					}
+					else
+					{
+						_hud?.LogToTerminal("Cannot move there!", Colors.Red);
+					}
+				}
+				// C. Klik Sembarang -> Hilangkan Highlight
+				else
+				{
+					_mapManager.ClearHighlight();
+					// Jika klik tanah kosong jauh, kita juga bisa unlock target (opsional)
+					// _isTargetLocked = false; 
+					// _targetEnemy = null;
+				}
 			}
+		}
+
+		private bool TryHandleEnemyClick(Vector2 mousePos)
+		{
+			var spaceState = GetWorld2D().DirectSpaceState;
+
+			var query = new PhysicsPointQueryParameters2D
+			{
+				Position = mousePos,
+				CollideWithBodies = true,
+				CollideWithAreas = true
+			};
+
+			var result = spaceState.IntersectPoint(query);
+
+			if (result.Count > 0)
+			{
+				// Ambil objek teratas
+				Node collider = (Node)result[0]["collider"];
+
+				// Cek apakah itu Enemy
+				if (collider is EnemyController enemy)
+				{
+					// LOGIKA LOCK / UNLOCK TARGET
+					if (_isTargetLocked && _targetEnemy == enemy)
+					{
+						// Klik enemy yang sama -> Unlock
+						_isTargetLocked = false;
+						_targetEnemy = null;
+						_hud?.ShowCombatPanel(false);
+						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
+					}
+					else
+					{
+						// Lock target baru
+						_targetEnemy = enemy;
+						_isTargetLocked = true;
+
+						// Update arah pandang player ke musuh
+						_lookDir = (enemy.GlobalPosition - GlobalPosition).Normalized();
+						_facingDir = _lookDir; // Paksa update visual
+
+						_hud?.ShowCombatPanel(true);
+						_hud?.LogToTerminal($"> TARGET LOCKED: {enemy.Name}", Colors.Yellow);
+					}
+
+					return true; // Enemy ditemukan dan diproses!
+				}
+			}
+
+			return false; // Tidak ada enemy yang diklik
 		}
 		public IEnumerable<PlayerSkill> GetAvailableSkills()
 		{
@@ -314,6 +395,7 @@ namespace MementoTest.Entities
 
 
 		// --- MOVEMENT LOGIC ---
+		// --- MOVEMENT LOGIC ---
 		private async void TryMoveToTile(Vector2 mousePos)
 		{
 			if (_mapManager == null) return;
@@ -321,11 +403,10 @@ namespace MementoTest.Entities
 			Vector2I targetGrid = _mapManager.GetGridCoordinates(mousePos);
 
 			// Validasi Gerak
-			if (!_mapManager.IsNeighbor(_currentGridPos, targetGrid)) return; // Kejauhan
-			if (!_mapManager.IsTileWalkable(targetGrid)) return; // Tembok/Air
-			if (_mapManager.IsTileOccupied(targetGrid)) return; // Ada unit lain
+			if (!_mapManager.IsNeighbor(_currentGridPos, targetGrid)) return;
+			if (!_mapManager.IsTileWalkable(targetGrid)) return;
+			if (_mapManager.IsTileOccupied(targetGrid)) return;
 
-			// Cek AP
 			int moveCost = 1;
 			if (_currentAP >= moveCost)
 			{
@@ -342,6 +423,8 @@ namespace MementoTest.Entities
 
 		private async Task MoveToGrid(Vector2I targetGrid)
 		{
+			_mapManager?.ClearHighlight();
+			_mapManager?.ClearMovementOptions();
 			if (_isMoving) return;
 			_isMoving = true;
 
@@ -377,6 +460,7 @@ namespace MementoTest.Entities
 		// --- COMBAT LOGIC ---
 		private async void ExecuteCombatCommand(string command)
 		{
+			_mapManager?.ClearMovementOptions();
 			// Validasi Target
 			if (_targetEnemy == null || !GodotObject.IsInstanceValid(_targetEnemy))
 			{
@@ -603,6 +687,8 @@ namespace MementoTest.Entities
 
 		private async Task EndCombatSession(string message)
 		{
+			_mapManager?.ClearMovementOptions();
+
 			_hud?.LogToTerminal($"> {message}", Colors.Gray);
 			await ToSignal(GetTree().CreateTimer(1.0f), "timeout"); // Delay biar kebaca
 
@@ -619,6 +705,8 @@ namespace MementoTest.Entities
 			_currentAP = Math.Min(_currentAP + TurnStartBaseRegen, MaxAP);
 			_hud?.UpdateAP(_currentAP, MaxAP);
 			_hud?.LogToTerminal($"--- AP RECHARGED (+{TurnStartBaseRegen}) ---", Colors.Cyan);
+
+			_mapManager?.ClearMovementOptions();
 
 			// Re-open combat panel kalau masih ada target
 			if (_targetEnemy != null && GodotObject.IsInstanceValid(_targetEnemy))
