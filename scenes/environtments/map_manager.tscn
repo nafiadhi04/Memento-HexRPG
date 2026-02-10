@@ -2,7 +2,6 @@
 
 [ext_resource type="Texture2D" uid="uid://bt1w0qbv15oia" path="res://assets/sprites/environtments/fantasyhextiles_v3.png" id="1_47r1d"]
 [ext_resource type="Script" uid="uid://cayb5ho8mqfq4" path="res://scripts/core/MapManager.cs" id="2_g0a0r"]
-[ext_resource type="PackedScene" uid="uid://drbvjh7pbk6k7" path="res://scenes/ui/selector/tile_selector.tscn" id="3_kfvpj"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_kfvpj"]
 resource_name = "Jungle"
@@ -135,4 +134,3 @@ tile_map_data = PackedByteArray("AAABAAAAAwAAAAAAAAACAAAAAwAAAAAAAAACAAEAAwAAAAA
 tile_set = SubResource("TileSet_kfvpj")
 script = ExtResource("2_g0a0r")
 GameBoard = NodePath(".")
-TileSelectorScene = ExtResource("3_kfvpj")

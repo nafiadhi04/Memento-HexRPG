@@ -11,14 +11,16 @@ config_version=5
 [application]
 
 config/name="Memento - HexRPG"
-run/main_scene="uid://dy0qtiis24i8l"
+run/main_scene="uid://br87fyebj7yia"
 config/features=PackedStringArray("4.6", "C#", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
 
+SceneTransition="*uid://bn7clsjvwpknj"
 ScoreManager="*uid://cmphi7an5rjkm"
 AccuracyTracker="*uid://cmsc7evu4sia5"
+GameManager="*uid://dbhnblxht7s3f"
 
 [display]
 

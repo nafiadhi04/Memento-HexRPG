@@ -1,0 +1,114 @@
+[gd_scene format=3 uid="uid://bhia44k26gevy"]
+
+[ext_resource type="Script" uid="uid://ds7dnbbl4fpaa" path="res://scripts/interfaces/SaveMenu.cs" id="1_ne8v6"]
+[ext_resource type="PackedScene" uid="uid://pais62e5oc6n" path="res://scenes/ui/save_slot.tscn" id="1_uo4td"]
+[ext_resource type="PackedScene" uid="uid://dy0qtiis24i8l" path="res://scenes/levels/main_scene.tscn" id="2_nemxf"]
+
+[node name="SaveMenu" type="Control" unique_id=1777335411]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_ne8v6")
+GameplayScene = ExtResource("2_nemxf")
+
+[node name="Background" type="ColorRect" parent="." unique_id=352683141]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.020699995, 0.034653317, 0.23, 1)
+
+[node name="MainLayout" type="VBoxContainer" parent="." unique_id=417258951]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -70.5
+offset_top = -20.0
+offset_right = 70.5
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="MainLayout" unique_id=637453130]
+layout_mode = 2
+text = "SELECT SAVE SLOT"
+
+[node name="SlotContainer" type="HBoxContainer" parent="MainLayout" unique_id=418684782]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="SaveSlot1" parent="MainLayout/SlotContainer" unique_id=538782394 instance=ExtResource("1_uo4td")]
+custom_minimum_size = Vector2(200, 300)
+layout_mode = 2
+
+[node name="SaveSlot2" parent="MainLayout/SlotContainer" unique_id=1213208935 instance=ExtResource("1_uo4td")]
+custom_minimum_size = Vector2(200, 300)
+layout_mode = 2
+SlotIndex = 2
+
+[node name="SaveSlot3" parent="MainLayout/SlotContainer" unique_id=1956381161 instance=ExtResource("1_uo4td")]
+custom_minimum_size = Vector2(200, 300)
+layout_mode = 2
+SlotIndex = 3
+
+[node name="BackButton" type="Button" parent="." unique_id=1075196062]
+layout_mode = 0
+offset_left = 583.0
+offset_top = 5.0
+offset_right = 628.0
+offset_bottom = 36.0
+text = "Back"
+
+[node name="CreationPanel" type="PanelContainer" parent="." unique_id=20869910]
+visible = false
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -77.0
+offset_top = -20.0
+offset_right = 77.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CreationPanel" unique_id=2080717786]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="CreationPanel/VBoxContainer" unique_id=2020147699]
+layout_mode = 2
+text = "CREATE CHARACTER"
+
+[node name="NameInput" type="LineEdit" parent="CreationPanel/VBoxContainer" unique_id=64370734]
+layout_mode = 2
+placeholder_text = "Enter name..."
+
+[node name="ClassOption" type="OptionButton" parent="CreationPanel/VBoxContainer" unique_id=497797181]
+layout_mode = 2
+
+[node name="ClassDescLabel" type="Label" parent="CreationPanel/VBoxContainer" unique_id=163843809]
+layout_mode = 2
+
+[node name="ButtonContainer" type="HBoxContainer" parent="CreationPanel/VBoxContainer" unique_id=912706914]
+layout_mode = 2
+alignment = 1
+
+[node name="CancelButton" type="Button" parent="CreationPanel/VBoxContainer/ButtonContainer" unique_id=1673920282]
+layout_mode = 2
+text = "CANCEL"
+
+[node name="StartGameButton" type="Button" parent="CreationPanel/VBoxContainer/ButtonContainer" unique_id=471937978]
+layout_mode = 2
+text = "START ADVENTURE"

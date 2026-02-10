@@ -1,0 +1,25 @@
+[gd_scene format=3 uid="uid://bn7clsjvwpknj"]
+
+[ext_resource type="Script" uid="uid://cju5e6ba68q8x" path="res://scripts/ui/SceneTransition.cs" id="1_igxph"]
+[ext_resource type="Shader" uid="uid://f1cno0427654" path="res://scenes/ui/scene_transition.gdshader" id="2_kq3v3"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_8hbrc"]
+shader = ExtResource("2_kq3v3")
+shader_parameter/progress = 0.0
+shader_parameter/hex_size = 40.0
+shader_parameter/screen_size = Vector2(1280, 720)
+
+[node name="SceneTransition" type="CanvasLayer" unique_id=1297279008]
+layer = 10000
+script = ExtResource("1_igxph")
+Duration = 0.5
+
+[node name="ColorRect" type="ColorRect" parent="." unique_id=311773593]
+material = SubResource("ShaderMaterial_8hbrc")
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 1)

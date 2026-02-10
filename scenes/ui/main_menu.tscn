@@ -1,0 +1,50 @@
+[gd_scene format=3 uid="uid://br87fyebj7yia"]
+
+[ext_resource type="Script" uid="uid://cyiht1m7jxmaw" path="res://scripts/ui/MainMenu.cs" id="1_fe2o3"]
+[ext_resource type="PackedScene" uid="uid://bhia44k26gevy" path="res://scenes/ui/save_menu.tscn" id="2_fe2o3"]
+
+[node name="MainMenu" type="Control" unique_id=1460245882]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_fe2o3")
+GameplayScene = ExtResource("2_fe2o3")
+
+[node name="Background" type="TextureRect" parent="." unique_id=483401512]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="TitleLabel" type="Label" parent="." unique_id=1108972385]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -31.0
+offset_right = 31.0
+offset_bottom = 23.0
+grow_horizontal = 2
+text = "HexRPG"
+
+[node name="MenuContainer" type="VBoxContainer" parent="." unique_id=1074231395]
+layout_mode = 1
+anchors_preset = 14
+anchor_top = 0.5
+anchor_right = 1.0
+anchor_bottom = 0.5
+offset_top = -21.5
+offset_bottom = 21.5
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="PlayButton" type="Button" parent="MenuContainer" unique_id=1277177324]
+layout_mode = 2
+text = "Play
+"
+
+[node name="QuitButton" type="Button" parent="MenuContainer" unique_id=910463257]
+layout_mode = 2
+text = "Quit"

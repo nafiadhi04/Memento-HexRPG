@@ -24,7 +24,7 @@ namespace MementoTest.Core
 		[Export] public Vector2 VisualOffset = new Vector2(0, 7); // Geser visual agar pas di tengah
 
 		[ExportSubgroup("Style")]
-		[Export] public float LineThickness = 3.0f;
+		[Export] public float LineThickness = 1.5f;
 		[Export(PropertyHint.Range, "0.1, 1.0")]
 		public float NeighborScale = 0.85f;
 		private Vector2 _visualOffset = new Vector2(0, 7);

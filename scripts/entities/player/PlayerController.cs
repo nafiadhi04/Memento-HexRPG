@@ -57,6 +57,8 @@ namespace MementoTest.Entities
 		private bool _lockFacing = false;
 		private Vector2 _lockedAttackDir;
 
+		private bool _isHighlightActive = false;
+
 
 
 
@@ -198,11 +200,21 @@ namespace MementoTest.Entities
 				Vector2I clickedGrid = _mapManager.GetGridCoordinates(mousePos);
 
 				GD.Print($"[INPUT] Clicked Grid: {clickedGrid}");
-
-				// A. Klik Diri Sendiri -> Tampilkan Range
+				// A. Klik Diri Sendiri -> TOGGLE Highlight (Nyala/Mati)
 				if (clickedGrid == _currentGridPos)
 				{
-					_mapManager.ShowNeighborHighlight(_currentGridPos);
+					if (_isHighlightActive)
+					{
+						// Jika sedang nyala, matikan
+						_mapManager.ClearHighlight();
+						_isHighlightActive = false;
+					}
+					else
+					{
+						// Jika sedang mati, nyalakan
+						_mapManager.ShowNeighborHighlight(_currentGridPos);
+						_isHighlightActive = true;
+					}
 				}
 				// B. Klik Tetangga Valid -> Bergerak
 				else if (_mapManager.IsNeighbor(_currentGridPos, clickedGrid))
@@ -210,6 +222,9 @@ namespace MementoTest.Entities
 					if (_mapManager.IsTileWalkable(clickedGrid) && !_mapManager.IsTileOccupied(clickedGrid))
 					{
 						TryMoveToTile(mousePos);
+
+						// [PENTING] Reset status highlight karena player akan bergerak
+						_isHighlightActive = false;
 					}
 					else
 					{
@@ -220,9 +235,8 @@ namespace MementoTest.Entities
 				else
 				{
 					_mapManager.ClearHighlight();
-					// Jika klik tanah kosong jauh, kita juga bisa unlock target (opsional)
-					// _isTargetLocked = false; 
-					// _targetEnemy = null;
+					_isHighlightActive = false; // [PENTING] Reset status
+
 				}
 			}
 		}
