@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="PlayerSkill" format=3 uid="uid://bqdr0ibpc8xiq"]
+
+[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectile.tscn" id="1_n56nq"]
+[ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="1_roj7o"]
+
+[resource]
+script = ExtResource("1_roj7o")
+CommandName = "burn"
+ApCost = 5
+Damage = 40
+AttackType = 2
+ProjectileScene = ExtResource("1_n56nq")
+Description = "High damage magic spell."
+metadata/_custom_type_script = "uid://bj6h3te0qhxb4"

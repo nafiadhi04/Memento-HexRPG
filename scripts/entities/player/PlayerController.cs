@@ -59,6 +59,19 @@ namespace MementoTest.Entities
 
 		private bool _isHighlightActive = false;
 
+		private Dictionary<PlayerClassType, List<string>> _classSkillPaths = new Dictionary<PlayerClassType, List<string>>
+{
+	{ PlayerClassType.Warrior, new List<string> { "res://resources/commands/playermovelist/WarriorSlash.tres" } },
+	{ PlayerClassType.Archer,  new List<string> { "res://resources/commands/playermovelist/ArcherShoot.tres" } },
+	{ PlayerClassType.Mage,    new List<string> { "res://resources/commands/playermovelist/MageFireball.tres" } }
+};
+		// Variabel DEBUG untuk testing di editor
+		[Export] public PlayerClassType DebugClass = PlayerClassType.Archer;
+		[Export] public bool UseDebugClass = false;
+
+		// Tambahkan variabel range serangan
+		private int _attackRange = 1;
+
 
 
 
@@ -103,7 +116,7 @@ namespace MementoTest.Entities
 			}
 
 
-
+			InitializeStatsFromSave();
 			// Snap posisi awal (Tunggu 1 frame biar aman)
 			CallDeferred(nameof(SnapToNearestGrid));
 		}
@@ -145,7 +158,69 @@ namespace MementoTest.Entities
 		}
 
 
+		// Panggil ini di _Ready() paling bawah
+		private void InitializeStatsFromSave()
+		{
+			PlayerClassType classToLoad = PlayerClassType.Warrior; // Default fallback
 
+			// 1. Cek apakah ada Save Data dari Game Manager
+			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
+			{
+				classToLoad = GameManager.Instance.CurrentSaveData.ClassType;
+				GD.Print($"[PLAYER] Loading Save Data: {classToLoad}");
+			}
+			// 2. Jika tidak ada (Main langsung dari Scene), cek Debug Mode
+			else if (UseDebugClass)
+			{
+				classToLoad = DebugClass;
+				GD.Print($"[PLAYER] Debug Mode: Forcing Class {classToLoad}");
+			}
+			else
+			{
+				GD.Print("[PLAYER] No Save & No Debug. Defaulting to Warrior.");
+			}
+
+			// 3. Set Stats & Range
+			SkillList.Clear(); // Hapus skill bawaan inspector
+			_skillDatabase.Clear();
+
+			switch (classToLoad)
+			{
+				case PlayerClassType.Warrior:
+					MaxHP = 150; MaxAP = 8; _attackRange = 1; // Melee
+					LoadSkillsForClass(PlayerClassType.Warrior);
+					break;
+				case PlayerClassType.Archer:
+					MaxHP = 80; MaxAP = 10; _attackRange = 6; // Jauh
+					LoadSkillsForClass(PlayerClassType.Archer);
+					break;
+				case PlayerClassType.Mage:
+					MaxHP = 70; MaxAP = 15; _attackRange = 4; // Sedang
+					LoadSkillsForClass(PlayerClassType.Mage);
+					break;
+			}
+
+			// Refresh UI
+			_currentHP = MaxHP;
+			_currentAP = MaxAP;
+			_hud?.UpdateHP(_currentHP, MaxHP);
+			_hud?.UpdateAP(_currentAP, MaxAP);
+		}
+
+		private void LoadSkillsForClass(PlayerClassType type)
+		{
+			if (!_classSkillPaths.ContainsKey(type)) return;
+
+			foreach (var path in _classSkillPaths[type])
+			{
+				var skill = ResourceLoader.Load<PlayerSkill>(path);
+				if (skill != null)
+				{
+					SkillList.Add(skill);
+					_skillDatabase[skill.CommandName.ToLower()] = skill;
+				}
+			}
+		}
 
 
 		private void SnapToNearestGrid()
@@ -179,117 +254,153 @@ namespace MementoTest.Entities
 		{
 			if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
 			{
-				// 1. VALIDASI DASAR (Sesuai kode lama Anda)
+				// 1. Validasi State
 				if (_turnManager?.CurrentTurn != TurnManager.TurnState.Player) return;
 				if (_isMoving || _isAttacking) return;
 				if (_currentHP <= 0) return;
 
 				Vector2 mousePos = GetGlobalMousePosition();
 
-				// 2. PRIORITAS 1: CEK ENEMY DULU!
-				// Jika kita berhasil mengklik musuh, hentikan proses (return true)
+				// 2. CEK KLIK ENEMY (Menggunakan Raycast baru)
 				if (TryHandleEnemyClick(mousePos))
 				{
-					// Bersihkan highlight gerakan jika kita memilih musuh
-					_mapManager?.ClearMovementOptions();
+					// Jika return true, artinya kita mengurus musuh (Lock/Unlock).
+					// Stop logic di sini, jangan jalan ke logic movement.
+					_mapManager?.ClearHighlight(); // Hapus highlight kuning jika ada
+					_isHighlightActive = false;
 					return;
 				}
 
-				// 3. PRIORITAS 2: LOGIKA GRID (Visualisasi & Gerak)
+				// 3. LOGIKA GRID / MOVEMENT (Jika tidak kena musuh)
 				if (_mapManager == null) return;
+
+				// ... (Kode logic grid klik tanah/movement Anda sebelumnya tetap sama di sini) ...
 				Vector2I clickedGrid = _mapManager.GetGridCoordinates(mousePos);
 
-				GD.Print($"[INPUT] Clicked Grid: {clickedGrid}");
-				// A. Klik Diri Sendiri -> TOGGLE Highlight (Nyala/Mati)
+				// Contoh singkat logic tanah:
 				if (clickedGrid == _currentGridPos)
 				{
-					if (_isHighlightActive)
-					{
-						// Jika sedang nyala, matikan
-						_mapManager.ClearHighlight();
-						_isHighlightActive = false;
-					}
-					else
-					{
-						// Jika sedang mati, nyalakan
-						_mapManager.ShowNeighborHighlight(_currentGridPos);
-						_isHighlightActive = true;
-					}
+					// Toggle highlight diri sendiri
+					if (_isHighlightActive) { _mapManager.ClearHighlight(); _isHighlightActive = false; }
+					else { _mapManager.ShowNeighborHighlight(_currentGridPos); _isHighlightActive = true; }
 				}
-				// B. Klik Tetangga Valid -> Bergerak
 				else if (_mapManager.IsNeighbor(_currentGridPos, clickedGrid))
 				{
+					// Gerak
 					if (_mapManager.IsTileWalkable(clickedGrid) && !_mapManager.IsTileOccupied(clickedGrid))
 					{
-						TryMoveToTile(mousePos);
+						// [PERBAIKAN] JANGAN RESET LOCK SAAT BERGERAK
+						// _targetEnemy = null;          <-- Hapus/Komen ini
+						// _isTargetLocked = false;      <-- Hapus/Komen ini
+						// _mapManager.ClearAttackHighlights(); <-- Hapus/Komen ini (Kecuali Anda mau highlight merah hilang sementara pas jalan)
+						// _hud?.ShowCombatPanel(false); <-- Hapus/Komen ini
 
-						// [PENTING] Reset status highlight karena player akan bergerak
+						// Simpan highlight serangan sementara (opsional, biar rapi pas jalan)
+						_mapManager?.ClearAttackHighlights();
+
+						TryMoveToTile(mousePos);
 						_isHighlightActive = false;
 					}
-					else
-					{
-						_hud?.LogToTerminal("Cannot move there!", Colors.Red);
-					}
 				}
-				// C. Klik Sembarang -> Hilangkan Highlight
 				else
 				{
+					// Klik tanah jauh -> Deselect Semua
 					_mapManager.ClearHighlight();
-					_isHighlightActive = false; // [PENTING] Reset status
+					_isHighlightActive = false;
 
+					// Opsional: Unlock target jika klik tanah kosong?
+					// Biasanya di game taktik, klik tanah kosong TIDAK unlock target, 
+					// tapi terserah desain Anda. Jika ingin unlock, uncomment di bawah:
+
+					/*
+					_targetEnemy = null;
+					_isTargetLocked = false;
+					_mapManager.ClearAttackHighlights();
+					_hud?.ShowCombatPanel(false);
+					*/
 				}
 			}
 		}
-
 		private bool TryHandleEnemyClick(Vector2 mousePos)
 		{
+			// --- 1. SETUP RAYCAST (Physics Query) ---
 			var spaceState = GetWorld2D().DirectSpaceState;
-
 			var query = new PhysicsPointQueryParameters2D
 			{
 				Position = mousePos,
 				CollideWithBodies = true,
-				CollideWithAreas = true
+				CollideWithAreas = true,
+				CollisionMask = 1 // Pastikan ini sesuai layer musuh Anda (Default layer 1)
 			};
 
 			var result = spaceState.IntersectPoint(query);
 
+			// --- 2. CEK HASIL RAYCAST ---
 			if (result.Count > 0)
 			{
-				// Ambil objek teratas
+				// Ambil objek teratas yang kena klik
 				Node collider = (Node)result[0]["collider"];
 
-				// Cek apakah itu Enemy
+				// Cek apakah itu EnemyController
 				if (collider is EnemyController enemy)
 				{
-					// LOGIKA LOCK / UNLOCK TARGET
+					// === KONDISI A: UNLOCK (Klik musuh yang sedang di-lock) ===
 					if (_isTargetLocked && _targetEnemy == enemy)
 					{
-						// Klik enemy yang sama -> Unlock
 						_isTargetLocked = false;
 						_targetEnemy = null;
-						_hud?.ShowCombatPanel(false);
+
+						// Update UI & Log
+						_hud?.ShowCombatPanel(false); // Pastikan BattleHUD punya fungsi ini
 						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
+
+						// Hapus Visualisasi di Map
+						_mapManager?.ClearAttackHighlights();
 					}
+					// === KONDISI B: LOCK BARU (Ganti target atau lock baru) ===
 					else
 					{
-						// Lock target baru
 						_targetEnemy = enemy;
 						_isTargetLocked = true;
 
 						// Update arah pandang player ke musuh
-						_lookDir = (enemy.GlobalPosition - GlobalPosition).Normalized();
-						_facingDir = _lookDir; // Paksa update visual
+						Vector2 direction = (enemy.GlobalPosition - GlobalPosition).Normalized();
+						UpdateLookDirection(direction); // Gunakan fungsi helper yang sudah ada
 
+						// Info Jarak
+						int dist = _mapManager != null ? _mapManager.GetGridDistance(_currentGridPos, _mapManager.GetGridCoordinates(enemy.GlobalPosition)) : 0;
+						string distInfo = (dist <= _attackRange) ? "IN RANGE" : "OUT OF RANGE";
+						Color distColor = (dist <= _attackRange) ? Colors.Green : Colors.Red;
+
+						// Update UI & Log
 						_hud?.ShowCombatPanel(true);
-						_hud?.LogToTerminal($"> TARGET LOCKED: {enemy.Name}", Colors.Yellow);
+						_hud?.LogToTerminal($"> LOCKED: {enemy.Name} ({distInfo})", distColor);
+
+						// Tampilkan Visualisasi Map (Merah & Emas)
+						if (_mapManager != null)
+						{
+							_mapManager.ClearHighlight(); // Hapus highlight jalan kuning
+							_mapManager.ShowAttackRange(_currentGridPos, _attackRange);
+
+							// Kita butuh posisi grid musuh untuk highlight
+							Vector2I enemyGrid = _mapManager.GetGridCoordinates(enemy.GlobalPosition);
+							_mapManager.ShowPlayerLockHighlight(_currentGridPos);
+							_mapManager.ShowTargetHighlight(enemyGrid);
+
+							
+						}
 					}
 
-					return true; // Enemy ditemukan dan diproses!
+					return true; // Enemy ditemukan dan diproses (Input stop di sini)
 				}
 			}
 
 			return false; // Tidak ada enemy yang diklik
+		}
+
+		private void UpdateLookDirection(Vector2 direction)
+		{
+			_lookDir = direction.Normalized();
 		}
 		public IEnumerable<PlayerSkill> GetAvailableSkills()
 		{
@@ -464,6 +575,25 @@ namespace MementoTest.Entities
 			_isMoving = false;
 
 			_currentGridPos = targetGrid;
+			_currentGridPos = targetGrid;
+
+			// [TAMBAHAN] Jika masih nge-lock musuh, update visual jarak barunya
+			if (_isTargetLocked && GodotObject.IsInstanceValid(_targetEnemy))
+			{
+				// Update Highlight Merah di posisi baru
+				_mapManager?.ShowAttackRange(_currentGridPos, _attackRange);
+
+				// Update Highlight Emas di musuh
+				Vector2I enemyGrid = _mapManager.GetGridCoordinates(_targetEnemy.GlobalPosition);
+				_mapManager?.ShowPlayerLockHighlight(_currentGridPos);
+				_mapManager?.ShowTargetHighlight(enemyGrid);
+
+				// Update Info Jarak di Terminal
+				int dist = _mapManager.GetGridDistance(_currentGridPos, enemyGrid);
+				string distInfo = (dist <= _attackRange) ? "IN RANGE" : "OUT OF RANGE";
+				Color distColor = (dist <= _attackRange) ? Colors.Green : Colors.Red;
+				_hud?.LogToTerminal($"> MOVED. TARGET: {_targetEnemy.Name} ({distInfo})", distColor);
+			}
 			_isMoving = false;
 
 			// [SAFETY CHECK]
@@ -474,6 +604,7 @@ namespace MementoTest.Entities
 		// --- COMBAT LOGIC ---
 		private async void ExecuteCombatCommand(string command)
 		{
+			
 			_mapManager?.ClearMovementOptions();
 			// Validasi Target
 			if (_targetEnemy == null || !GodotObject.IsInstanceValid(_targetEnemy))
@@ -491,6 +622,32 @@ namespace MementoTest.Entities
 			if (_skillDatabase.ContainsKey(command))
 			{
 				var skill = _skillDatabase[command];
+
+				// 2. Cek MapManager & Hitung Jarak
+				if (_mapManager != null)
+				{
+					// --- MULAI AREA LOGIKA JARAK ---
+					Vector2I enemyGrid = _mapManager.GetGridCoordinates(_targetEnemy.GlobalPosition);
+
+					// Deklarasi 'dist' ada di sini
+					int dist = _mapManager.GetGridDistance(_currentGridPos, enemyGrid);
+
+					GD.Print($"[COMBAT] Distance: {dist} | Range Limit: {_attackRange}");
+
+					// Pengecekan dilakukan DI DALAM blok yang sama, agar 'dist' dikenali
+					if (dist > _attackRange)
+					{
+						_hud?.LogToTerminal($"TOO FAR! Target is {dist} tiles away. Range: {_attackRange}", Colors.Red);
+						return; // ⛔ STOP! Jangan lanjut serang
+					}
+					// --- SELESAI AREA LOGIKA JARAK ---
+				}
+				else
+				{
+					// Jika MapManager hilang (safety check)
+					GD.PrintErr("[PLAYER] MapManager not found!");
+					return;
+				}
 
 				if (_currentAP >= skill.ApCost)
 				{
@@ -529,6 +686,10 @@ namespace MementoTest.Entities
 
 				await EndCombatSession("SYSTEM HALTED.");
 			}
+
+			_mapManager?.ClearAttackHighlights();
+
+			_mapManager?.ShowNeighborHighlight(_currentGridPos);
 		}
 
 		private async Task PerformAttackAnimation(int damage, AttackType attackType)

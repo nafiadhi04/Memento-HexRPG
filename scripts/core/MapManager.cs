@@ -29,13 +29,40 @@ namespace MementoTest.Core
 		public float NeighborScale = 0.85f;
 		private Vector2 _visualOffset = new Vector2(0, 7);
 
+		[ExportSubgroup("Combat Visuals")]
+
+		[Export]
+		public Color TargetLockedColor = new Color(1, 0.5f, 0, 1.0f);
+
+		[ExportSubgroup("Combat Visuals")]
+		// [WARNA BARU - BISA DIEDIT DI INSPECTOR]
+		[Export] public Color MovementColor = new Color(0, 0, 1, 0.4f);      // Biru Transparan
+		[Export] public Color AttackRangeColor = new Color(1, 1, 0, 0.4f);   // Kuning Transparan
+		[Export] public Color PlayerLockColor = new Color(0, 0.5f, 0, 0.6f); // Hijau Tua
+		[Export] public Color EnemyLockColor = new Color(0.5f, 0, 0, 0.6f);  // Merah Tua
+
 		private List<Node2D> _activeSelectors = new List<Node2D>();
 		// Variabel untuk Kursor Visual
 		private Line2D _highlightCursor;
 
-		private List<Line2D> _activeHighlights = new List<Line2D>();
 
 		private Line2D _mouseCursor; // Ganti nama biar jelas
+
+
+
+   // Highlight Player saat Lock
+
+		// List untuk Movement Highlight (Biru)
+		private List<Polygon2D> _activeHighlights = new List<Polygon2D>();
+
+		// List untuk Attack Range Highlight (Kuning)
+		private List<Polygon2D> _activeAttackHighlights = new List<Polygon2D>();
+
+		// Indicator Lock Musuh (Merah)
+		private Polygon2D _targetCursorIndicator;
+
+		// Indicator Lock Player (Hijau)
+		private Polygon2D _playerLockIndicator;
 
 		public override void _Ready()
 		{
@@ -49,6 +76,43 @@ namespace MementoTest.Core
 		public override void _Process(double delta)
 		{
 			UpdateMouseCursor();
+		}
+
+		// --- VISUAL HEXAGON FLAT-TOP (DATAR ATAS) ---
+		private Polygon2D CreateHexPolygonStyle(Color color, float scale = 0.9f)
+		{
+			Polygon2D poly = new Polygon2D();
+			poly.Color = color;
+
+			// Gunakan HexWidth / 2 sebagai radius dasar
+			float radius = (HexWidth / 2f) * scale;
+
+			Vector2[] points = new Vector2[6];
+			for (int i = 0; i < 6; i++)
+			{
+				// Flat Top Angles: 0, 60, 120, 180, 240, 300
+				// Sudut 0 ada di Kanan, membuat sisi atas datar.
+				float angle_deg = 60 * i;
+				float angle_rad = Mathf.DegToRad(angle_deg);
+
+				points[i] = new Vector2(
+					radius * Mathf.Cos(angle_rad),
+					radius * Mathf.Sin(angle_rad)
+				);
+			}
+			poly.Polygon = points;
+
+			// --- ANIMASI KEDIP ---
+			var tween = CreateTween().SetLoops();
+			tween.BindNode(poly);
+
+			float startAlpha = color.A;
+			float lowAlpha = startAlpha * 0.4f;
+
+			tween.TweenProperty(poly, "color:a", lowAlpha, 0.6f).SetTrans(Tween.TransitionType.Sine);
+			tween.TweenProperty(poly, "color:a", startAlpha, 0.6f).SetTrans(Tween.TransitionType.Sine);
+
+			return poly;
 		}
 
 		private Line2D CreateHexLineStyle(Color color, float scale)
@@ -97,6 +161,18 @@ namespace MementoTest.Core
 			// Ubah Grid ke Lokal, lalu ke Global World Position
 			return GameBoard.ToGlobal(GameBoard.MapToLocal(gridPos));
 		}
+
+		// Versi Paling Stabil untuk MapManager.cs
+		public int GetGridDistance(Vector2I gridA, Vector2I gridB)
+		{
+			if (gridA == gridB) return 0;
+			Vector2 posA = GridToWorld(gridA);
+			Vector2 posB = GridToWorld(gridB);
+
+			// Membagi jarak pixel dengan konstanta ukuran hex
+			// Angka 21.0f didapat dari (14.0 * 1.5). Sesuaikan jika gridmu lebih besar.
+			return Mathf.RoundToInt(posA.DistanceTo(posB) / 21.0f);
+		}
 		private void CreateHighlightCursor()
 		{
 			// Membuat node Line2D secara coding (tanpa perlu add node di Scene)
@@ -129,6 +205,68 @@ namespace MementoTest.Core
 			AddChild(_highlightCursor); // Masukkan ke dalam Scene
 		}
 
+		// --- 2. ATTACK RANGE HIGHLIGHT (KUNING) ---
+		public void ShowAttackRange(Vector2I centerPos, int range)
+		{
+			ClearAttackHighlights();
+
+			// Scan area kotak, lalu filter jarak hex
+			for (int x = -range; x <= range; x++)
+			{
+				for (int y = -range; y <= range; y++)
+				{
+					Vector2I targetGrid = centerPos + new Vector2I(x, y);
+
+					// Validasi Jarak & Tile
+					if (GetGridDistance(centerPos, targetGrid) <= range)
+					{
+						if (GetCellSourceId(targetGrid) != -1) // Pastikan tile ada
+						{
+							Polygon2D hex = CreateHexPolygonStyle(AttackRangeColor, 1.8f);
+							hex.Position = GridToWorld(targetGrid) + VisualOffset;
+
+							AddChild(hex);
+							_activeAttackHighlights.Add(hex);
+						}
+					}
+				}
+			}
+		}
+
+		// --- FUNGSI BARU: HIGHLIGHT MUSUH SPESIFIK (LOCK) ---
+		// --- 3. TARGET LOCK HIGHLIGHT (MERAH TUA - MUSUH) ---
+		public void ShowTargetHighlight(Vector2I enemyPos)
+		{
+			if (_targetCursorIndicator != null && IsInstanceValid(_targetCursorIndicator))
+			{
+				_targetCursorIndicator.QueueFree();
+			}
+
+			_targetCursorIndicator = CreateHexPolygonStyle(EnemyLockColor, 1.8f); // Full size
+			_targetCursorIndicator.Position = GridToWorld(enemyPos) + VisualOffset;
+			AddChild(_targetCursorIndicator);
+		}
+		public void ClearAttackHighlights() // Bersihkan Attack (Kuning) + Lock Indicators
+		{
+			foreach (var poly in _activeAttackHighlights)
+			{
+				if (IsInstanceValid(poly)) poly.QueueFree();
+			}
+			_activeAttackHighlights.Clear();
+
+			if (_targetCursorIndicator != null && IsInstanceValid(_targetCursorIndicator))
+			{
+				_targetCursorIndicator.QueueFree();
+				_targetCursorIndicator = null;
+			}
+
+			if (_playerLockIndicator != null && IsInstanceValid(_playerLockIndicator))
+			{
+				_playerLockIndicator.QueueFree();
+				_playerLockIndicator = null;
+			}
+		}
+	
 		private void UpdateCursorPosition()
 		{
 			Vector2 mousePos = GetGlobalMousePosition();
@@ -259,41 +397,70 @@ namespace MementoTest.Core
 			}
 		}
 
-		public void ShowNeighborHighlight(Vector2I centerPos)
+		// --- 4. PLAYER LOCK HIGHLIGHT (HIJAU TUA - PLAYER) ---
+		public void ShowPlayerLockHighlight(Vector2I playerPos)
 		{
-			ClearHighlight();
-
-			TileSet.CellNeighbor[] neighbors = {
-				TileSet.CellNeighbor.TopSide, TileSet.CellNeighbor.BottomSide,
-				TileSet.CellNeighbor.TopLeftSide, TileSet.CellNeighbor.TopRightSide,
-				TileSet.CellNeighbor.BottomLeftSide, TileSet.CellNeighbor.BottomRightSide
-			};
-
-			foreach (var side in neighbors)
+			if (_playerLockIndicator != null && IsInstanceValid(_playerLockIndicator))
 			{
-				Vector2I neighborGrid = GetNeighborCell(centerPos, side);
+				_playerLockIndicator.QueueFree();
+			}
 
-				if (IsTileWalkable(neighborGrid) && !IsTileOccupied(neighborGrid))
+			_playerLockIndicator = CreateHexPolygonStyle(PlayerLockColor, 1.8f); // Full size
+			_playerLockIndicator.Position = GridToWorld(playerPos) + VisualOffset;
+			AddChild(_playerLockIndicator);
+		}
+
+		public void ShowNeighborHighlight(Vector2I currentGrid)
+		{
+			ClearHighlight(); // Bersihkan yang lama
+
+			foreach (Vector2I neighbor in GetNeighbors(currentGrid))
+			{
+				if (IsTileWalkable(neighbor) && !IsTileOccupied(neighbor))
 				{
-					// Gunakan MoveHighlightColor dan NeighborScale dari Inspector
-					Line2D hexHighlight = CreateHexLineStyle(MoveHighlightColor, NeighborScale);
+					Polygon2D hex = CreateHexPolygonStyle(MovementColor, 1.80f); // Skala 0.8 agar ada celah sedikit
+					hex.Position = GridToWorld(neighbor) + VisualOffset;
 
-					// Posisi + VisualOffset dari Inspector
-					hexHighlight.Position = GridToWorld(neighborGrid) + VisualOffset;
-
-					AddChild(hexHighlight);
-					_activeHighlights.Add(hexHighlight);
+					AddChild(hex);
+					_activeHighlights.Add(hex);
 				}
 			}
 		}
+public List<Vector2I> GetNeighbors(Vector2I cell)
+    {
+        List<Vector2I> list = new List<Vector2I>();
 
-		public void ClearHighlight()
+        // Daftar sisi tetangga untuk Flat-Top
+        TileSet.CellNeighbor[] sides = {
+            TileSet.CellNeighbor.TopSide, 
+            TileSet.CellNeighbor.BottomSide,
+            TileSet.CellNeighbor.TopLeftSide, 
+            TileSet.CellNeighbor.TopRightSide,
+            TileSet.CellNeighbor.BottomLeftSide, 
+            TileSet.CellNeighbor.BottomRightSide
+        };
+
+        foreach (var side in sides)
+        {
+            // GetNeighborCell adalah fungsi bawaan TileMapLayer.
+            // Dia otomatis menghitung berdasarkan settingan Inspector (Vertical/Horizontal/Odd/Even)
+            Vector2I neighbor = GetNeighborCell(cell, side);
+            
+            // Tambahkan ke list
+            list.Add(neighbor);
+        }
+
+        return list;
+    }
+
+		public void ClearHighlight() // Bersihkan Movement (Biru)
 		{
-			foreach (var line in _activeHighlights)
+			foreach (var poly in _activeHighlights)
 			{
-				if (GodotObject.IsInstanceValid(line)) line.QueueFree();
+				if (IsInstanceValid(poly)) poly.QueueFree();
 			}
 			_activeHighlights.Clear();
 		}
+
 	}
 }
