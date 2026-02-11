@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://w7r8srqg76ep" path="res://scripts/entities/enemy/EnemyController.cs" id="1_essrt"]
 [ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_yfmsl"]
-[ext_resource type="Resource" uid="uid://b5gbtl5hk1yxv" path="res://resources/commands/enemymovelist/headbutt.tres" id="2_c8ylr"]
 [ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_pm80n"]
 [ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="4_20lqd"]
 [ext_resource type="PackedScene" uid="uid://cxuxljpyebawn" path="res://scenes/ui/enemy_health_bar.tscn" id="5_gflvi"]
@@ -21,7 +20,7 @@ scale = Vector2(0.1, 0.1)
 collision_layer = 3
 collision_mask = 9
 script = ExtResource("1_essrt")
-SkillList = Array[Object]([ExtResource("2_c8ylr")])
+SkillList = Array[Object]([])
 ReactionTimeMelee = 5.0
 ReactionTimeRanged = 5.0
 DamagePopupScene = ExtResource("3_pm80n")

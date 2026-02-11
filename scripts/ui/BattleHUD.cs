@@ -29,7 +29,12 @@ namespace MementoTest.UI
 		[Export] public Control ReactionPanel;
 		[Export] public Label ReactionPromptLabel;
 		[Export] public ProgressBar ReactionTimerBar;
-		
+
+		// Warna Hex untuk BBCode
+		private const string COLOR_CORRECT = "#00FF00"; // Hijau (Benar)
+		private const string COLOR_WRONG = "#FF0000";   // Merah (Typo)
+		private const string COLOR_GHOST = "#FFFFFF40"; // Abu-abu (Sisa kata/Hi
+
 
 
 		// --- [BARU] PLAYER STATS BARS ---
@@ -54,6 +59,11 @@ namespace MementoTest.UI
 		private Control _combatPanel;
 		private LineEdit _commandInput;
 		private RichTextLabel _combatLog;
+
+		// --- EXPORT UI ---
+		[ExportGroup("Command System")]
+		[Export] public LineEdit CommandInput;        // Input asli (Transparan)
+		[Export] public RichTextLabel CommandFeedback;
 		private Label _apLabel;
 		private Button _endTurnBtn;
 		private TaskCompletionSource<bool> _reactionTcs;
@@ -92,6 +102,28 @@ namespace MementoTest.UI
 			}
 
 			SetupCombatUI();
+
+			// Auto-assign jika belum di-set di Inspector
+			if (CommandInput == null) CommandInput = GetNodeOrNull<LineEdit>("%CommandInput");
+			if (CommandFeedback == null) CommandFeedback = GetNodeOrNull<RichTextLabel>("%CommandFeedback");
+
+			if (CommandInput != null)
+			{
+				CommandInput.TextChanged += OnCommandInputChanged;
+				CommandInput.TextSubmitted += OnCommandEntered;
+
+				// Pastikan input asli transparan agar tidak menutupi teks warna
+				// (Tapi caret/kursor tetap terlihat jika tema default)
+				CommandInput.Modulate = new Color(1, 1, 1, 0);
+			}
+
+			if (CommandFeedback != null)
+			{
+				CommandFeedback.BbcodeEnabled = true;
+				CommandFeedback.Text = "";
+			}
+
+			if (ReactionPanel != null) ReactionPanel.Visible = false;
 
 			_commandInput = GetNode<LineEdit>(
 				"Control/CombatPanel/VBoxContainer/CommandInput"
@@ -150,6 +182,10 @@ namespace MementoTest.UI
 		private void SetupCombatUI()
 		{
 			if (!HasNode("Control/CombatPanel")) return;
+			if (_combatPanel == null) _combatPanel = GetNodeOrNull<Control>("Control/CombatPanel");
+
+			// Pastikan panel combat tersembunyi di awal
+			if (_combatPanel != null) _combatPanel.Visible = false;
 
 			_combatPanel = GetNode<Control>("Control/CombatPanel");
 			_combatLog = _combatPanel.GetNodeOrNull<RichTextLabel>("VBoxContainer/CombatLog");
@@ -310,81 +346,131 @@ namespace MementoTest.UI
 
 
 		// --- INPUT HANDLER ---
-
 		private void OnCommandEntered(string text)
 		{
-			string cleanText = text.Trim().ToLower();
-			double now = Time.GetUnixTimeFromSystem();
-			LastReactionTime = (float)(now - _reactionStartTime);
+			// [PERUBAHAN] Trim + ToUpper
+			string cleanText = text.Trim().ToUpper();
 
-			// =============================
-			// REACTION PHASE (parry / dodge)
-			// =============================
+			// 1. Logic Reaction
 			if (_isReactionPhase)
 			{
-				if (cleanText == _expectedReactionWord)
+				// Bandingkan dengan expected reaction (juga di-ToUpper)
+				if (cleanText == _expectedReactionWord.ToUpper())
 				{
-					LogToTerminal(">>> PERFECT DEFENSE!", Colors.Cyan);
 					_reactionTaskSource?.TrySetResult(true);
 				}
 				else
 				{
 					FailReaction("TYPO");
 				}
-
-				_commandInput.Clear();
+				ResetInputUI();
 				return;
 			}
 
-			// =============================
-			// NORMAL PLAYER COMMAND
-			// =============================
-			EmitSignal(SignalName.CommandSubmitted, cleanText);
-			_commandInput.Clear();
+			// 2. Logic Normal Command
+			// Validasi apakah command ada di daftar
+			if (_availableCommands.Contains(cleanText))
+			{
+				EmitSignal(SignalName.CommandSubmitted, cleanText);
+			}
+			else
+			{
+				EmitSignal(SignalName.CommandSubmitted, cleanText);
+			}
+
+			ResetInputUI();
 		}
 
 
+
+		private void ResetInputUI()
+		{
+			if (CommandInput != null) CommandInput.Clear();
+			if (CommandFeedback != null) CommandFeedback.Text = "";
+		}
+
+		// ==========================================================
+		//  STATE MANAGEMENT
+		// ==========================================================
+
+		// Dipanggil PlayerController saat giliran player mulai
+		public void EnterPlayerCommandPhase(IEnumerable<string> commands)
+		{
+			_isReactionPhase = false;
+
+			_availableCommands.Clear();
+			// [PERUBAHAN] Simpan semua sebagai UpperCase
+			foreach (var cmd in commands) _availableCommands.Add(cmd.ToUpper());
+
+			EnableInputUI(true);
+			GD.Print("[HUD] Player Command Phase Started");
+		}
 		private void OnCommandInputChanged(string newText)
 		{
-			if (!_reactionActive)
-				return;
-
 			if (string.IsNullOrEmpty(newText))
 			{
-				_commandInput.Modulate = Colors.White;
+				if (CommandFeedback != null) CommandFeedback.Text = "";
 				return;
 			}
 
-			newText = newText.ToLower();
+			// [PERUBAHAN] Paksa UpperCase di sini
+			string input = newText.ToUpper();
+			string bestMatch = "";
+			string bbcode = "";
 
-			// =========================
-			// REACTION MODE (parry/dodge)
-			// =========================
+			// --- A. FASE REAKSI (PARRY/DODGE) ---
 			if (_isReactionPhase)
 			{
-				bool valid = _expectedReactionWord.StartsWith(newText);
-				_commandInput.Modulate = valid ? Colors.LimeGreen : Colors.IndianRed;
-				return;
+				// Pastikan target juga UpperCase
+				bestMatch = _expectedReactionWord.ToUpper();
+			}
+			// --- B. FASE COMMAND BIASA (ATTACK) ---
+			else
+			{
+				// Cari skill yang cocok (Asumsi daftar skill sudah UpperCase semua)
+				bestMatch = FindBestMatch(input);
 			}
 
-			// =========================
-			// ATTACK MODE
-			// =========================
-			bool anyMatch = false;
+			// --- C. GENERATE WARNA (BBCODE) ---
+			if (!string.IsNullOrEmpty(bestMatch))
+			{
+				for (int i = 0; i < input.Length; i++)
+				{
+					if (i < bestMatch.Length && input[i] == bestMatch[i])
+					{
+						bbcode += $"[color={COLOR_CORRECT}]{input[i]}[/color]"; // Hijau
+					}
+					else
+					{
+						bbcode += $"[color={COLOR_WRONG}]{input[i]}[/color]"; // Merah
+					}
+				}
+
+				// Ghost Text (Sisa Huruf)
+				if (input.Length < bestMatch.Length)
+				{
+					string ghostSuffix = bestMatch.Substring(input.Length);
+					bbcode += $"[color={COLOR_GHOST}]{ghostSuffix}[/color]";
+				}
+			}
+			else
+			{
+				bbcode = $"[color={COLOR_WRONG}]{input}[/color]";
+			}
+
+			if (CommandFeedback != null) CommandFeedback.Text = $"[center]{bbcode}[/center]";
+		}
+
+		private string FindBestMatch(string input)
+		{
 
 			foreach (var cmd in _availableCommands)
 			{
-				if (cmd.StartsWith(newText))
-				{
-					anyMatch = true;
-					break;
-				}
+				
+				if (cmd.ToUpper().StartsWith(input)) return cmd.ToUpper();
 			}
-
-			_commandInput.Modulate = anyMatch ? Colors.LimeGreen : Colors.IndianRed;
-		}
-
-
+			return null;
+		}	
 		private void UpdateTypingColor(string input, string expected)
 		{
 			if (string.IsNullOrEmpty(input))
@@ -471,26 +557,6 @@ namespace MementoTest.UI
 			return _availableCommands.Contains(command);
 		}
 
-		public void EnterPlayerCommandPhase(IEnumerable<string> commands)
-		{
-			_isPlayerCommandPhase = true;
-			_isReactionPhase = false;
-			_reactionActive = true;
-
-			_availableCommands.Clear();
-			foreach (var cmd in commands)
-				_availableCommands.Add(cmd.ToLower());
-
-			_expectedWord = ""; // attack = banyak command valid
-
-			_commandInput.Clear();
-			_commandInput.Modulate = Colors.White;
-			_commandInput.Editable = true;
-			_commandInput.Visible = true;
-			_commandInput.GrabFocus();
-
-			GD.Print("[HUD] Player command phase started");
-		}
 
 		public void ExitPlayerCommandPhase()
 		{
@@ -498,7 +564,17 @@ namespace MementoTest.UI
 			_commandInput.ReleaseFocus();
 		}
 
+		public void EnableInputUI(bool enable)
+		{
+			if (_combatPanel != null) _combatPanel.Visible = enable;
 
+			if (enable && CommandInput != null)
+			{
+				CommandInput.Editable = true;
+				CommandInput.Clear();
+				CommandInput.GrabFocus();
+			}
+		}
 
 		// --- Helper Methods ---
 		public void ShowCombatPanel(bool show)

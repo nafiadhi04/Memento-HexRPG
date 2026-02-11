@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="EnemyAIProfile" format=3 uid="uid://dr28kq5lgi0ti"]
+
+[ext_resource type="Script" uid="uid://c556nbxe4u3h7" path="res://scripts/core/battle/EnemyAIProfile.cs" id="1_5q2af"]
+
+[resource]
+script = ExtResource("1_5q2af")
+RetreatDistance = 0
+ChaseDistance = 8
+metadata/_custom_type_script = "uid://c556nbxe4u3h7"

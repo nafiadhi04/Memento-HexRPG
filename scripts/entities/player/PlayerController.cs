@@ -908,7 +908,7 @@ namespace MementoTest.Entities
 			// === PARRY / BLOCK / MISS ===
 			if (damage <= 0)
 			{
-				ShowDamagePopup(0); // optional (misal "PARRY")
+				ShowDamagePopup(damage); // optional (misal "PARRY")
 				return; // ⛔ STOP di sini
 			}
 
@@ -960,18 +960,37 @@ namespace MementoTest.Entities
 		}
 
 
-		private void ShowDamagePopup(int amount)
+
+		private void ShowDamagePopup(int amount, string label = "")
 		{
 			if (DamagePopupScene == null) return;
 
-			var popup = DamagePopupScene.Instantiate<DamagePopup>();
-			AddChild(popup);
+			var instance = DamagePopupScene.Instantiate();
+			GetParent().AddChild(instance); // Spawn di World
 
-			popup.SetupAndAnimate(
-				amount,
-				GlobalPosition + new Vector2(0, -30),
-				Colors.Red
-			);
+			// Hitung posisi target (sedikit di atas kepala)
+			Vector2 targetPos = GlobalPosition + new Vector2(0, -40);
+
+			// [PERBAIKAN] Cek tipe satu per satu
+			if (instance is Node2D node2d)
+			{
+				node2d.GlobalPosition = targetPos;
+			}
+			else if (instance is Control control) // Label termasuk Control
+			{
+				control.GlobalPosition = targetPos;
+			}
+
+			// Panggil fungsi Setup
+			if (instance.HasMethod("Setup"))
+			{
+				instance.Call("Setup", amount, label);
+			}
+			else
+			{
+				// Fallback jika script belum update (biar ga crash)
+				GD.PrintErr("Script DamagePopup belum punya fungsi Setup!");
+			}
 		}
 
 		private void Die()

@@ -38,7 +38,7 @@ font_size = 32
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
-[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar")]
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar", "CommandInput", "CommandFeedback")]
 script = ExtResource("1_dy3po")
 ScoreLabel = NodePath("Control/ScoreLabel")
 ComboLabel = NodePath("Control/ComboLabel")
@@ -47,6 +47,8 @@ ReactionPromptLabel = NodePath("ReactionPanel/VboxContainer/ReactionPromptLabel"
 ReactionTimerBar = NodePath("ReactionPanel/VboxContainer/ReactionTimerBar")
 PlayerHPBar = NodePath("Control/HPBar")
 PlayerAPBar = NodePath("Control/APBar")
+CommandInput = NodePath("Control/CombatPanel/VBoxContainer/InputOverlay/CommandInput")
+CommandFeedback = NodePath("Control/CombatPanel/VBoxContainer/InputOverlay/CommandFeedback")
 
 [node name="ReactionPanel" type="PanelContainer" parent="." unique_id=1441546504]
 anchors_preset = 8
@@ -175,3 +177,27 @@ tab_size = 15
 
 [node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer" unique_id=1274233966]
 layout_mode = 2
+
+[node name="InputOverlay" type="Control" parent="Control/CombatPanel/VBoxContainer" unique_id=1534977550]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+
+[node name="CommandFeedback" type="RichTextLabel" parent="Control/CombatPanel/VBoxContainer/InputOverlay" unique_id=2032741679 groups=["HUD"]]
+layout_mode = 0
+offset_right = 40.0
+offset_bottom = 40.0
+mouse_filter = 2
+bbcode_enabled = true
+fit_content = true
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer/InputOverlay" unique_id=805460690]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+alignment = 1
+flat = true

@@ -7,7 +7,7 @@ font_color = Color(1, 0.5, 0.5, 1)
 outline_size = 4
 outline_color = Color(0, 0, 0, 1)
 
-[node name="DamagePopup" type="Label" unique_id=1135363549]
+[node name="DamagePopup" type="Label" unique_id=1135363549 node_paths=PackedStringArray("Label")]
 offset_right = 35.0
 offset_bottom = 34.0
 pivot_offset = Vector2(18, 18)
@@ -16,3 +16,4 @@ label_settings = SubResource("LabelSettings_hjrak")
 horizontal_alignment = 1
 vertical_alignment = 1
 script = ExtResource("1_gufe0")
+Label = NodePath(".")

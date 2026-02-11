@@ -3,16 +3,38 @@ using System;
 
 namespace MementoTest.Resources
 {
+    // Enum untuk membedakan tipe serangan
+    public enum EnemyAttackType
+    {
+        Melee,
+        Ranged
+    }
+
     [GlobalClass]
     public partial class EnemySkill : Resource
     {
-        [Export] public string SkillName { get; set; } = "Unknown Attack";
+        [ExportGroup("General Info")]
+        [Export] public string SkillName { get; set; } = "Attack";
+        [Export] public EnemyAttackType AttackType { get; set; } = EnemyAttackType.Melee;
         [Export] public int Damage { get; set; } = 10;
 
-        // Jarak serangan dalam Pixel (agar mudah dihitung)
-        // Misal: 100 (Dekat), 300 (Jauh/Tembak), 1000 (Sniper)
-        [Export] public float AttackRange { get; set; } = 100f;
+        // [PERUBAHAN] Range sekarang Integer (Satuan Grid)
+        [Export] public int Range { get; set; } = 1;
 
-        [Export(PropertyHint.MultilineText)] public string Description { get; set; } = "Attack Description";
+        [ExportGroup("Reaction Settings")]
+        // Waktu yang diberikan ke player untuk mengetik
+        [Export] public float ReactionTime { get; set; } = 1.5f;
+
+        [ExportGroup("Visuals")]
+        [Export] public string AnimationName { get; set; } = "attack";
+
+        // [FITUR BARU] Projectile Khusus untuk skill ini
+        [Export] public PackedScene ProjectilePrefab;
+
+        // Helper: Otomatis tentukan command Parry/Dodge
+        public string GetReactionCommand()
+        {
+            return AttackType == EnemyAttackType.Ranged ? "DODGE" : "PARRY";
+        }
     }
 }

@@ -1,0 +1,8 @@
+[gd_resource type="Resource" script_class="EnemySkill" format=3 uid="uid://b3mkjpu02oqfy"]
+
+[ext_resource type="Script" uid="uid://o501np5g5vub" path="res://scripts/core/battle/EnemySkill.cs" id="1_uqalh"]
+
+[resource]
+script = ExtResource("1_uqalh")
+SkillName = "Blunt Force"
+metadata/_custom_type_script = "uid://o501np5g5vub"

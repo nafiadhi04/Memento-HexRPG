@@ -17,6 +17,7 @@ namespace MementoTest.Entities
 		 * ======================= */
 		[ExportGroup("Stats")]
 		[Export] public int MaxHP = 50;
+		[Export] public string EnemyName = "Goblin";
 
 		[ExportGroup("Movement")]
 		[Export] public float MoveDuration = 0.3f;
@@ -26,6 +27,9 @@ namespace MementoTest.Entities
 		[Export] public float ReactionTimeMelee = 1.5f;
 		[Export] public float ReactionTimeRanged = 2.0f;
 		[Export] public PackedScene DamagePopupScene;
+		// Fallback projectile jika di Skill kosong (Opsional)
+		[Export] public PackedScene DefaultProjectilePrefab;
+		[Export] public AnimatedSprite2D Sprite; // Referensi visual
 
 		[ExportGroup("AI")]
 		[Export] public EnemyAIProfile AiProfile;
@@ -76,7 +80,7 @@ namespace MementoTest.Entities
 				_healthBar.MaxValue = MaxHP;
 				_healthBar.Value = _currentHP;
 			}
-
+			_hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
 			_mapManager = MapManager.Instance;
 			_currentGridPos = _mapManager.WorldToGrid(GlobalPosition);
 			GlobalPosition = _mapManager.GridToWorld(_currentGridPos);
@@ -261,7 +265,7 @@ namespace MementoTest.Entities
 		private async Task TryAttack(int dist)
 		{
 			var usableSkills = SkillList
-				.Where(s => s.AttackRange >= dist)
+				.Where(s => s.Range >= dist)
 				.ToList();
 
 			if (usableSkills.Count == 0)
@@ -281,14 +285,124 @@ namespace MementoTest.Entities
 			var skill = usableSkills[_rng.Next(usableSkills.Count)];
 			await PerformSkill(skill);
 
-			
+
 		}
 
+		public async Task PerformTurn()
+		{
+			if (_targetPlayer == null || _targetPlayer.CurrentHP <= 0) return;
+
+			// 1. Hitung Jarak Grid ke Player
+			int dist = GetGridDistanceToPlayer();
+			GD.Print($"[ENEMY] Turn Start. Dist: {dist}");
+
+			// 2. Cek apakah ada Skill yang bisa dipakai di jarak ini?
+			EnemySkill chosenSkill = null;
+
+			// Prioritaskan skill jarak jauh dulu jika ada, atau acak
+			foreach (var skill in SkillList)
+			{
+				if (dist <= skill.Range)
+				{
+					chosenSkill = skill;
+					break; // Ambil skill pertama yang valid
+				}
+			}
+
+			// 3. Action: SERANG atau GERAK
+			if (chosenSkill != null)
+			{
+				// Jarak cukup -> SERANG!
+				await AttackPlayer(chosenSkill);
+			}
+			else
+			{
+				// Kejauhan -> GERAK MENDEKAT
+				// (Sederhana: Gerak 1 langkah ke arah player)
+				await MoveTowardsPlayer();
+			}
+		}
+		/* =======================
+				 * ATTACK LOGIC
+				 * ======================= */
+		private async Task AttackPlayer(EnemySkill skill)
+		{
+			if (_hud == null) return;
+
+			// 1. Tentukan Command Reaksi (PARRY / DODGE)
+			string reactionCmd = skill.GetReactionCommand();
+
+			// Log info
+			_hud.LogToTerminal($"Enemy prepares {skill.SkillName}!", Colors.Orange);
+
+			// 2. Play Animasi "Charging" / Persiapan (Opsional)
+			if (Sprite != null && Sprite.SpriteFrames.HasAnimation("charge"))
+			{
+				Sprite.Play("charge");
+			}
+
+			// 3. TUNGGU REAKSI PLAYER (Minigame Ketik)
+			// Memanggil fungsi baru di BattleHUD yang kita buat sebelumnya
+			bool playerSuccess = await _hud.WaitForPlayerReaction(reactionCmd, skill.ReactionTime);
+
+			// 4. Eksekusi Hasil
+			if (playerSuccess)
+			{
+				// --- PLAYER BERHASIL (BLOKIR) ---
+				GD.Print("[ENEMY] Attack BLOCKED/DODGED!");
+				_hud.LogToTerminal($"{reactionCmd} SUCCESS!", Colors.Green);
+
+				// Feedback Visual Gagal Serang
+				ShowDamagePopup(0, "MISS");
+			}
+			else
+			{
+				// --- PLAYER GAGAL (KENA DAMAGE) ---
+				GD.Print("[ENEMY] Attack HIT!");
+
+				// Animasi Serang
+				if (Sprite != null && !string.IsNullOrEmpty(skill.AnimationName))
+				{
+					if (Sprite.SpriteFrames.HasAnimation(skill.AnimationName))
+					{
+						Sprite.Play(skill.AnimationName);
+						// await ToSignal(Sprite, AnimatedSprite2D.SignalName.AnimationFinished); // Tunggu anim
+					}
+				}
+
+				// Logic Tipe Serangan
+				if (skill.AttackType == EnemyAttackType.Ranged)
+				{
+					// Spawn Projectile
+					SpawnProjectile(skill);
+				}
+
+				// Apply Damage ke Player
+				_targetPlayer.TakeDamage(skill.Damage);
+			}
+		}
+
+		private void SpawnProjectile(EnemySkill skill)
+		{
+			// Prioritaskan Projectile bawaan Skill, lalu Default
+			PackedScene projPrefab = skill.ProjectilePrefab ?? DefaultProjectilePrefab;
+
+			if (projPrefab != null)
+			{
+				var proj = projPrefab.Instantiate<Node2D>(); // Asumsi projectile Node2D
+				GetParent().AddChild(proj);
+				proj.GlobalPosition = GlobalPosition;
+
+				// Setup projectile (arah, target, dll)
+				// Disini Anda perlu script Projectile sederhana yang bergerak ke target
+				// Contoh: proj.Call("Setup", _targetPlayer.GlobalPosition);
+			}
+		}
 		private async Task TryAttackPixel()
 		{
 			float pixelDist = GlobalPosition.DistanceTo(_targetPlayer.GlobalPosition);
 
-			var skills = SkillList.Where(s => s.AttackRange >= pixelDist).ToList();
+			var skills = SkillList.Where(s => s.Range >= pixelDist).ToList();
 			if (skills.Count == 0)
 			{
 				await Wait();
@@ -316,7 +430,7 @@ namespace MementoTest.Entities
 
 			if (_hud != null)
 			{
-				bool melee = skill.AttackRange <= AiProfile.MeleeThreshold;
+				bool melee = skill.Range <= AiProfile.MeleeThreshold;
 				string word = melee ? "parry" : "dodge";
 				float time = melee ? ReactionTimeMelee : ReactionTimeRanged;
 
@@ -397,10 +511,52 @@ namespace MementoTest.Entities
 
 		private async Task MoveTowardsPlayer()
 		{
-			Vector2I next = GetBestMoveTowards(_targetPlayer.GlobalPosition);
+			if (_mapManager == null) return;
 
-			if (next != _currentGridPos)
-				await MoveToGrid(next);
+			// Pathfinding Sederhana (Greedy): Cari tetangga yang paling dekat ke player
+			Vector2I bestTile = _currentGridPos;
+			int bestDist = int.MaxValue;
+			Vector2I playerGrid = _mapManager.GetGridCoordinates(_targetPlayer.GlobalPosition);
+
+			// Cek semua tetangga
+			foreach (Vector2I neighbor in _mapManager.GetNeighbors(_currentGridPos))
+			{
+				// Validasi: Bisa jalan & Kosong
+				if (_mapManager.IsTileWalkable(neighbor) && !_mapManager.IsTileOccupied(neighbor))
+				{
+					int d = _mapManager.GetGridDistance(neighbor, playerGrid);
+					if (d < bestDist)
+					{
+						bestDist = d;
+						bestTile = neighbor;
+					}
+				}
+			}
+
+			// Jika ada tile yang lebih dekat, pindah
+			if (bestTile != _currentGridPos)
+			{
+				// Update Grid
+				_currentGridPos = bestTile;
+
+				// Animasi Gerak (Tween)
+				Tween t = CreateTween();
+				t.TweenProperty(this, "global_position", _mapManager.GridToWorld(bestTile), MoveDuration);
+				await ToSignal(t, "finished");
+			}
+			else
+			{
+				// Terjebak / Tidak ada jalan
+				_hud.LogToTerminal("Enemy waits...", Colors.Gray);
+			}
+		}
+
+		// Helper Jarak Grid (Sama persis logic Player)
+		private int GetGridDistanceToPlayer()
+		{
+			if (_mapManager == null || _targetPlayer == null) return 999;
+			Vector2I playerGrid = _mapManager.GetGridCoordinates(_targetPlayer.GlobalPosition);
+			return _mapManager.GetGridDistance(_currentGridPos, playerGrid);
 		}
 
 		private async Task MoveAwayFromPlayer()
@@ -453,11 +609,6 @@ namespace MementoTest.Entities
 			await ToSignal(t, "finished");
 			_currentGridPos = target;
 		}
-		private int GetGridDistanceToPlayer()
-		{
-			Vector2I playerGrid = _mapManager.GetGridCoordinates(_targetPlayer.GlobalPosition);
-			return (int)_currentGridPos.DistanceTo(playerGrid);
-		}
 
 		/* =======================
 		 * DAMAGE & DEATH
@@ -471,20 +622,36 @@ namespace MementoTest.Entities
 			if (_currentHP <= 0)
 				Die();
 		}
-
-		private void ShowDamagePopup(int amount)
+		private void ShowDamagePopup(int amount, string label = "")
 		{
 			if (DamagePopupScene == null) return;
 
-			var popup = DamagePopupScene.Instantiate<DamagePopup>();
-			AddChild(popup);
+			var instance = DamagePopupScene.Instantiate();
+			GetParent().AddChild(instance); // Spawn di World
 
-			// Enemy kena damage → KUNING
-			popup.SetupAndAnimate(
-				amount,
-				GlobalPosition + new Vector2(0, -30),
-				Colors.Yellow
-			);
+			// Hitung posisi target (sedikit di atas kepala)
+			Vector2 targetPos = GlobalPosition + new Vector2(0, -40);
+
+			// [PERBAIKAN] Cek tipe satu per satu
+			if (instance is Node2D node2d)
+			{
+				node2d.GlobalPosition = targetPos;
+			}
+			else if (instance is Control control) // Label termasuk Control
+			{
+				control.GlobalPosition = targetPos;
+			}
+
+			// Panggil fungsi Setup
+			if (instance.HasMethod("Setup"))
+			{
+				instance.Call("Setup", amount, label);
+			}
+			else
+			{
+				// Fallback jika script belum update (biar ga crash)
+				GD.PrintErr("Script DamagePopup belum punya fungsi Setup!");
+			}
 		}
 
 		private async void Die()

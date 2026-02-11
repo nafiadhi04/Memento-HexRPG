@@ -12,9 +12,11 @@
 [ext_resource type="Script" uid="uid://b4ofm18pb8w1g" path="res://scripts/core/AreaTracker.cs" id="6_8hc5g"]
 [ext_resource type="PackedScene" uid="uid://qo415ne0pan2" path="res://scenes/levels/locked_area.tscn" id="6_fiowe"]
 [ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectile.tscn" id="7_jtcbb"]
-[ext_resource type="Script" uid="uid://c556nbxe4u3h7" path="res://scripts/core/battle/EnemyAIProfile.cs" id="9_iusvx"]
 [ext_resource type="Script" uid="uid://ddqwc7dhlg7n3" path="res://scripts/core/battle/TargetingProfile.cs" id="10_p61ap"]
 [ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="11_df41j"]
+[ext_resource type="Resource" uid="uid://b3mkjpu02oqfy" path="res://resources/commands/enemymovelist/Blunt.tres" id="13_3jqmn"]
+[ext_resource type="Resource" uid="uid://dns5bu7bkdprg" path="res://resources/commands/enemymovelist/ArrowShot.tres" id="14_o6frn"]
+[ext_resource type="Resource" uid="uid://xjnk6k2vowsq" path="res://resources/enemyai/Kiting.tres" id="15_3jqmn"]
 
 [sub_resource type="Resource" id="Resource_jtcbb"]
 script = ExtResource("5_jtcbb")
@@ -35,13 +37,6 @@ ProjectileScene = ExtResource("7_jtcbb")
 Description = "Ranged arrow shot.
 "
 metadata/_custom_type_script = "uid://bj6h3te0qhxb4"
-
-[sub_resource type="Resource" id="Resource_p61ap"]
-script = ExtResource("9_iusvx")
-PreferredDistance = 1.0
-RetreatDistance = 0.0
-ChaseDistance = 999.0
-metadata/_custom_type_script = "uid://c556nbxe4u3h7"
 
 [sub_resource type="Resource" id="Resource_df41j"]
 script = ExtResource("10_p61ap")
@@ -99,6 +94,7 @@ script = ExtResource("6_8hc5g")
 [node name="Enemy" parent="EnemyGroups/Area1" unique_id=584458365 instance=ExtResource("3_3ulyp")]
 position = Vector2(-37.99997, 47.000004)
 MaxHP = 100
-AiProfile = SubResource("Resource_p61ap")
+SkillList = Array[Object]([ExtResource("13_3jqmn"), ExtResource("14_o6frn")])
+AiProfile = ExtResource("15_3jqmn")
 TargetingProfile = SubResource("Resource_df41j")
 SpeedBonusProfile = SubResource("Resource_84bhp")

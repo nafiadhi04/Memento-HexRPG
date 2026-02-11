@@ -7,19 +7,21 @@ namespace MementoTest.Resources
 	{
 		public enum BehaviorType
 		{
-			Aggressive,
-			Kiting
+			Aggressive, // Maju terus sampai jarak serang
+			Kiting      // Jaga jarak aman, mundur jika terlalu dekat
 		}
 
 		[ExportGroup("Behavior")]
 		[Export] public BehaviorType Behavior = BehaviorType.Aggressive;
 
-		[ExportGroup("Distance Settings")]
-		[Export] public float PreferredDistance = 120f;   // Ideal attack distance
-		[Export] public float RetreatDistance = 80f;      // Kapan mundur (kiting)
-		[Export] public float ChaseDistance = 200f;       // Maks jarak ngejar
+		[ExportGroup("Grid Distance Settings")]
+		// GANTI KE INT (SATUAN TILE)
+
+		[Export] public int PreferredDistance = 1;   // Jarak ideal (1 = Melee, 3+ = Range)
+		[Export] public int RetreatDistance = 2;     // Jika jarak < 2 tile, mundur (Khusus Kiting)
+		[Export] public int ChaseDistance = 6;       // Kejar jika jarak <= 6 tile
 
 		[ExportGroup("Reaction Threshold")]
-		[Export] public float MeleeThreshold = 150f;      // <= ini dianggap melee
+		[Export] public int MeleeThreshold = 1;      // Jarak <= 1 dianggap Melee (Parry)
 	}
 }

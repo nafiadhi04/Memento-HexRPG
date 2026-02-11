@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="EnemySkill" format=3 uid="uid://dns5bu7bkdprg"]
+
+[ext_resource type="Script" uid="uid://o501np5g5vub" path="res://scripts/core/battle/EnemySkill.cs" id="1_01dro"]
+
+[resource]
+script = ExtResource("1_01dro")
+SkillName = "Arrow Shot"
+AttackType = 1
+Range = 4
+metadata/_custom_type_script = "uid://o501np5g5vub"
