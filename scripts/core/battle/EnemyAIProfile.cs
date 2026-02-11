@@ -19,8 +19,8 @@ namespace MementoTest.Resources
 
 		[Export] public int PreferredDistance = 1;   // Jarak ideal (1 = Melee, 3+ = Range)
 		[Export] public int RetreatDistance = 2;     // Jika jarak < 2 tile, mundur (Khusus Kiting)
-		[Export] public int ChaseDistance = 6;       // Kejar jika jarak <= 6 tile
-
+		[Export] public int ChaseDistance = 6;
+		[Export] public int SightRange = 5; 
 		[ExportGroup("Reaction Threshold")]
 		[Export] public int MeleeThreshold = 1;      // Jarak <= 1 dianggap Melee (Parry)
 	}

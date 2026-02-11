@@ -58,6 +58,7 @@ namespace MementoTest.Entities
 		private Vector2 _lockedAttackDir;
 
 		private bool _isHighlightActive = false;
+		private bool _isInputLocked = false;
 
 		private Dictionary<PlayerClassType, List<string>> _classSkillPaths = new Dictionary<PlayerClassType, List<string>>
 {
@@ -252,6 +253,7 @@ namespace MementoTest.Entities
 		// --- INPUT HANDLING (SATPAM) ---
 		public override void _Input(InputEvent @event)
 		{
+			if (_isInputLocked) return;
 			if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
 			{
 				// 1. Validasi State
@@ -261,141 +263,151 @@ namespace MementoTest.Entities
 
 				Vector2 mousePos = GetGlobalMousePosition();
 
-				// 2. CEK KLIK ENEMY (Menggunakan Raycast baru)
+				// HANYA PANGGIL SATU FUNGSI INI
 				if (TryHandleEnemyClick(mousePos))
 				{
-					// Jika return true, artinya kita mengurus musuh (Lock/Unlock).
-					// Stop logic di sini, jangan jalan ke logic movement.
-					_mapManager?.ClearHighlight(); // Hapus highlight kuning jika ada
+					// Jika kena musuh, matikan highlight kuning (move)
+					_mapManager?.ClearHighlight();
 					_isHighlightActive = false;
-					return;
+					return; 
 				}
 
-				// 3. LOGIKA GRID / MOVEMENT (Jika tidak kena musuh)
+				// 3. LOGIKA GRID / MOVEMENT
 				if (_mapManager == null) return;
 
-				// ... (Kode logic grid klik tanah/movement Anda sebelumnya tetap sama di sini) ...
 				Vector2I clickedGrid = _mapManager.GetGridCoordinates(mousePos);
 
-				// Contoh singkat logic tanah:
+				// --- PERBAIKAN LOGIKA IF-ELSE ---
+
+				// KASUS A: Klik Diri Sendiri (Toggle Highlight Move)
 				if (clickedGrid == _currentGridPos)
 				{
-					// Toggle highlight diri sendiri
-					if (_isHighlightActive) { _mapManager.ClearHighlight(); _isHighlightActive = false; }
-					else { _mapManager.ShowNeighborHighlight(_currentGridPos); _isHighlightActive = true; }
+					if (_isHighlightActive)
+					{
+						_mapManager.ClearHighlight();
+						_isHighlightActive = false;
+					}
+					else
+					{
+						// Tampilkan tetangga yang bisa diinjak (Kuning/Biru)
+						_mapManager.ShowNeighborHighlight(_currentGridPos);
+						_isHighlightActive = true;
+					}
 				}
+				// KASUS B: Klik Tetangga (Coba Jalan)
 				else if (_mapManager.IsNeighbor(_currentGridPos, clickedGrid))
 				{
-					// Gerak
+					// Pastikan highlight aktif dulu baru bisa jalan (opsional, tapi bagus buat UX)
+					// Atau langsung jalan saja.
+
 					if (_mapManager.IsTileWalkable(clickedGrid) && !_mapManager.IsTileOccupied(clickedGrid))
 					{
-						// [PERBAIKAN] JANGAN RESET LOCK SAAT BERGERAK
-						// _targetEnemy = null;          <-- Hapus/Komen ini
-						// _isTargetLocked = false;      <-- Hapus/Komen ini
-						// _mapManager.ClearAttackHighlights(); <-- Hapus/Komen ini (Kecuali Anda mau highlight merah hilang sementara pas jalan)
-						// _hud?.ShowCombatPanel(false); <-- Hapus/Komen ini
-
-						// Simpan highlight serangan sementara (opsional, biar rapi pas jalan)
-						_mapManager?.ClearAttackHighlights();
+						// Simpan highlight serangan sementara (biar rapi pas jalan)
+						// _mapManager?.ClearAttackHighlights(); // (Opsional)
 
 						TryMoveToTile(mousePos);
+
+						// Matikan highlight move setelah jalan
+						_mapManager.ClearHighlight();
 						_isHighlightActive = false;
 					}
 				}
+				// KASUS C: Klik Tanah Jauh / Tidak Valid
 				else
 				{
-					// Klik tanah jauh -> Deselect Semua
+					// Deselect move highlight
 					_mapManager.ClearHighlight();
 					_isHighlightActive = false;
 
-					// Opsional: Unlock target jika klik tanah kosong?
-					// Biasanya di game taktik, klik tanah kosong TIDAK unlock target, 
-					// tapi terserah desain Anda. Jika ingin unlock, uncomment di bawah:
-
-					/*
-					_targetEnemy = null;
-					_isTargetLocked = false;
-					_mapManager.ClearAttackHighlights();
-					_hud?.ShowCombatPanel(false);
-					*/
+					// Bersihkan sight enemy juga kalau klik tanah kosong
+					_mapManager?.ClearEnemySight();
 				}
 			}
+			// Klik Kanan: Batalkan semua highlight
+			else if (@event is InputEventMouseButton rMouse && rMouse.Pressed && rMouse.ButtonIndex == MouseButton.Right)
+			{
+				_mapManager?.ClearHighlight();
+				_mapManager?.ClearEnemySight();
+				_isHighlightActive = false;
+			}
 		}
+
 		private bool TryHandleEnemyClick(Vector2 mousePos)
 		{
-			// --- 1. SETUP RAYCAST (Physics Query) ---
+			// 1. SETUP RAYCAST (Cara paling akurat mendeteksi klik pada objek fisik)
 			var spaceState = GetWorld2D().DirectSpaceState;
 			var query = new PhysicsPointQueryParameters2D
 			{
 				Position = mousePos,
 				CollideWithBodies = true,
 				CollideWithAreas = true,
-				CollisionMask = 1 // Pastikan ini sesuai layer musuh Anda (Default layer 1)
+				CollisionMask = 1 // Pastikan Layer Musuh ada di sini
 			};
 
 			var result = spaceState.IntersectPoint(query);
 
-			// --- 2. CEK HASIL RAYCAST ---
+			// 2. CEK HASIL RAYCAST
 			if (result.Count > 0)
 			{
-				// Ambil objek teratas yang kena klik
 				Node collider = (Node)result[0]["collider"];
 
-				// Cek apakah itu EnemyController
+				// Apakah yang diklik adalah Musuh?
 				if (collider is EnemyController enemy)
 				{
-					// === KONDISI A: UNLOCK (Klik musuh yang sedang di-lock) ===
+					// --- LOGIKA UTAMA INTERAKSI MUSUH ---
+
+					// A. TAMPILKAN SIGHT RANGE (Visual Ungu)
+					int sightRange = enemy.GetSightRange();
+					_mapManager?.ShowEnemySight(enemy.CurrentGridPos, sightRange);
+
+					// B. LOGIKA LOCK TARGET (Visual Merah/Emas & Data Tempur)
 					if (_isTargetLocked && _targetEnemy == enemy)
 					{
+						// === UNLOCK (Jika klik musuh yang sedang di-lock) ===
 						_isTargetLocked = false;
 						_targetEnemy = null;
 
-						// Update UI & Log
-						_hud?.ShowCombatPanel(false); // Pastikan BattleHUD punya fungsi ini
+						_hud?.ShowCombatPanel(false);
 						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
 
-						// Hapus Visualisasi di Map
+						// Bersihkan Highlight Serangan, TAPI Sight Range biarkan menyala (karena baru diklik)
 						_mapManager?.ClearAttackHighlights();
 					}
-					// === KONDISI B: LOCK BARU (Ganti target atau lock baru) ===
 					else
 					{
+						// === LOCK BARU (Ganti target atau lock baru) ===
 						_targetEnemy = enemy;
 						_isTargetLocked = true;
 
-						// Update arah pandang player ke musuh
+						// Update Arah Pandang Player
 						Vector2 direction = (enemy.GlobalPosition - GlobalPosition).Normalized();
-						UpdateLookDirection(direction); // Gunakan fungsi helper yang sudah ada
+						UpdateLookDirection(direction);
 
-						// Info Jarak
-						int dist = _mapManager != null ? _mapManager.GetGridDistance(_currentGridPos, _mapManager.GetGridCoordinates(enemy.GlobalPosition)) : 0;
+						// Update Info UI
+						int dist = _mapManager != null ? _mapManager.GetGridDistance(_currentGridPos, enemy.CurrentGridPos) : 0;
 						string distInfo = (dist <= _attackRange) ? "IN RANGE" : "OUT OF RANGE";
 						Color distColor = (dist <= _attackRange) ? Colors.Green : Colors.Red;
 
-						// Update UI & Log
 						_hud?.ShowCombatPanel(true);
 						_hud?.LogToTerminal($"> LOCKED: {enemy.Name} ({distInfo})", distColor);
 
-						// Tampilkan Visualisasi Map (Merah & Emas)
+						// Tampilkan Highlight Tempur (Merah & Emas)
 						if (_mapManager != null)
 						{
-							_mapManager.ClearHighlight(); // Hapus highlight jalan kuning
+							// Matikan highlight jalan (kuning) biar tidak ramai
+							_mapManager.ClearHighlight();
+
 							_mapManager.ShowAttackRange(_currentGridPos, _attackRange);
-
-							// Kita butuh posisi grid musuh untuk highlight
-							Vector2I enemyGrid = _mapManager.GetGridCoordinates(enemy.GlobalPosition);
 							_mapManager.ShowPlayerLockHighlight(_currentGridPos);
-							_mapManager.ShowTargetHighlight(enemyGrid);
-
-							
+							_mapManager.ShowTargetHighlight(enemy.CurrentGridPos);
 						}
 					}
 
-					return true; // Enemy ditemukan dan diproses (Input stop di sini)
+					return true; // Berhasil klik musuh -> Stop input movement
 				}
 			}
 
-			return false; // Tidak ada enemy yang diklik
+			return false; // Tidak klik musuh -> Lanjut ke logic movement
 		}
 
 		private void UpdateLookDirection(Vector2 direction)
@@ -539,11 +551,30 @@ namespace MementoTest.Entities
 				_hud?.UpdateAP(_currentAP, MaxAP);
 
 				await MoveToGrid(targetGrid);
+				await TriggerEnemyTurn();
 			}
 			else
 			{
 				_hud?.LogToTerminal("ERROR: NOT ENOUGH AP!", Colors.Red);
 			}
+		}
+
+		private async Task TriggerEnemyTurn()
+		{
+			_isInputLocked = true;
+			// Ambil semua musuh
+			var enemies = GetTree().GetNodesInGroup("Enemy");
+
+			// Gerakkan mereka satu per satu (Sequence)
+			foreach (var node in enemies)
+			{
+				if (node is EnemyController enemy)
+				{
+					// Musuh bergerak/serang sesuai AI
+					await enemy.ExecuteTurn();
+				}
+			}
+			_isInputLocked = false;
 		}
 
 		private async Task MoveToGrid(Vector2I targetGrid)

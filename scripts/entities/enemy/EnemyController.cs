@@ -44,7 +44,9 @@ namespace MementoTest.Entities
 		 * ======================= */
 		private int _currentHP;
 		private bool _isBusy;
-		
+
+		public Vector2I CurrentGridPos => _currentGridPos;
+
 		private PlayerController _targetPlayer;
 
 		private MapManager _mapManager;
@@ -148,37 +150,80 @@ namespace MementoTest.Entities
 		 * ======================= */
 		public async Task ExecuteTurn()
 		{
-			// Tunggu sampai HUD benar-benar idle
-			while (_hud != null && _hud.IsBusy)
-			{
-				await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
-			}
-
+			// Cek kesiapan HUD dan Data
+			while (_hud != null && _hud.IsBusy) await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
+			if (_targetPlayer == null || AiProfile == null) return;
 			if (_isExecutingTurn) return;
+
 			_isExecutingTurn = true;
 
-			GD.Print("[AI] Enemy TURN START");
+			// 1. Hitung Jarak Grid
+			int dist = GetGridDistanceToPlayer();
 
-			if (_targetPlayer == null || AiProfile == null)
+			// 2. LOGIKA SIGHT (PENGLIHATAN)
+			if (dist > AiProfile.SightRange)
 			{
-				_isExecutingTurn = false;
-				return;
+				// Player diluar jangkauan -> Jalan-jalan Random
+				// GD.Print($"[AI] Player too far ({dist} > {AiProfile.SightRange}). Wandering...");
+				await HandleIdle();
 			}
-			_targetPlayer = SelectTarget();
-
-			if (_targetPlayer == null || AiProfile == null)
+			else
 			{
-				GD.PrintErr("[ENEMY] Missing target or AI profile.");
-				return;
+				// Player terlihat -> Aktifkan Mode Tempur (Aggressive/Kiting)
+				// GD.Print($"[AI] Player spotted! Distance: {dist}");
+				await HandleCombat(dist);
 			}
-
-			GD.Print($"[AI] Target selected: {_targetPlayer.Name}");
-
-			await HandleAI();
 
 			_isExecutingTurn = false;
 		}
 
+		// --- MODE TEMPUR (Wrapper untuk Aggressive/Kiting) ---
+		private async Task HandleCombat(int gridDist)
+		{
+			switch (AiProfile.Behavior)
+			{
+				case EnemyAIProfile.BehaviorType.Aggressive:
+					await HandleAggressive(gridDist); // (Fungsi lama Anda)
+					break;
+
+				case EnemyAIProfile.BehaviorType.Kiting:
+					await HandleKiting(gridDist);     // (Fungsi lama Anda)
+					break;
+			}
+		}
+		public int GetSightRange()
+		{
+			return AiProfile != null ? AiProfile.SightRange : 0;
+		}
+		// --- MODE SANTAI (JALAN RANDOM) ---
+		private async Task HandleIdle()
+		{
+			// Cari tetangga acak yang bisa diinjak
+			Vector2I? randomTarget = GetRandomValidNeighbor();
+
+			if (randomTarget.HasValue)
+			{
+				await MoveToGrid(randomTarget.Value);
+			}
+			else
+			{
+				// Tidak ada jalan / terpojok -> Diam saja
+				await Wait(0.2f);
+			}
+		}
+
+		// Helper: Cari 1 kotak tetangga acak yang kosong
+		private Vector2I? GetRandomValidNeighbor()
+		{
+			var validNeighbors = GetValidNeighbors(); // (Fungsi yang sudah ada di kode Anda)
+
+			if (validNeighbors.Count > 0)
+			{
+				int index = _rng.Next(validNeighbors.Count);
+				return validNeighbors[index];
+			}
+			return null;
+		}
 
 		private async Task HandleAI()
 		{
@@ -603,13 +648,38 @@ namespace MementoTest.Entities
 
 		private async Task MoveToGrid(Vector2I target)
 		{
+			Vector2I oldGrid = _currentGridPos; // Simpan posisi lama
+
 			Vector2 world = _mapManager.GridToWorld(target);
 			Tween t = CreateTween();
 			t.TweenProperty(this, "global_position", world, MoveDuration);
 			await ToSignal(t, "finished");
-			_currentGridPos = target;
-		}
 
+			_currentGridPos = target; // Update posisi baru
+
+			// [BARU] UPDATE VISUAL SIGHT (UNGU)
+			// Cek apakah MapManager sedang menampilkan highlight sight?
+			if (_mapManager != null && _mapManager.IsEnemySightActive())
+			{
+				// Kita asumsi hanya 1 musuh yang di-highlight dalam satu waktu.
+				// Idealnya kita cek apakah 'this' adalah musuh yang sedang di-highlight,
+				// tapi karena sistem klik kita "Select One", logika ini aman.
+
+				// Cek apakah player sedang menarget musuh INI?
+				// Atau cek sederhana: Update saja sightnya.
+				_mapManager.UpdateEnemySight(oldGrid, _currentGridPos, GetSightRange());
+			}
+
+			// [BARU] UPDATE VISUAL LOCK (MERAH)
+			// Jika musuh ini adalah target yang sedang di-lock player, pindahkan highlight merahnya juga
+			// (Asumsi PlayerController punya akses public ke target, atau kita update membabi buta)
+			if (_hud != null) // Cek sederhana
+			{
+				// Request MapManager untuk refresh target highlight di posisi baru
+				// (MapManager butuh fungsi khusus atau kita panggil ShowTargetHighlight lagi)
+				_mapManager?.MoveTargetHighlight(target);
+			}
+		}
 		/* =======================
 		 * DAMAGE & DEATH
 		 * ======================= */

@@ -39,7 +39,9 @@ namespace MementoTest.Core
 		[Export] public Color MovementColor = new Color(0, 0, 1, 0.4f);      // Biru Transparan
 		[Export] public Color AttackRangeColor = new Color(1, 1, 0, 0.4f);   // Kuning Transparan
 		[Export] public Color PlayerLockColor = new Color(0, 0.5f, 0, 0.6f); // Hijau Tua
-		[Export] public Color EnemyLockColor = new Color(0.5f, 0, 0, 0.6f);  // Merah Tua
+		[Export] public Color EnemyLockColor = new Color(0.5f, 0, 0, 0.6f);
+		private readonly Color _enemySightColor = new Color(0.6f, 0.2f, 0.8f, 0.4f);
+		private List<Polygon2D> _enemySightHighlights = new List<Polygon2D>();// Merah Tua
 
 		private List<Node2D> _activeSelectors = new List<Node2D>();
 		// Variabel untuk Kursor Visual
@@ -426,7 +428,103 @@ namespace MementoTest.Core
 				}
 			}
 		}
-public List<Vector2I> GetNeighbors(Vector2I cell)
+
+		public void ShowEnemySight(Vector2I centerGrid, int range)
+		{
+			// Hapus highlight sebelumnya (jika ada)
+			ClearEnemySight();
+
+			// Dapatkan semua tile dalam radius sight
+			List<Vector2I> tilesInRange = GetTilesInRange(centerGrid, range);
+
+			foreach (var tile in tilesInRange)
+			{
+				// Gunakan fungsi pembuat polygon yang sudah ada (asumsi namanya CreateHexPolygonStyle)
+				// Kita kirim warna ungu
+				Polygon2D poly = CreateHexPolygonStyle(_enemySightColor, 0f); // Scale 1.0 biar penuh
+
+				AddChild(poly);
+				poly.GlobalPosition = GridToWorld(tile);
+
+				// Simpan di list khusus enemy sight
+				_enemySightHighlights.Add(poly);
+			}
+		}
+		public List<Vector2I> GetTilesInRange(Vector2I center, int range)
+		{
+			List<Vector2I> results = new List<Vector2I>();
+
+			// Gunakan BFS untuk menyebar dari tengah
+			Queue<Vector2I> queue = new Queue<Vector2I>();
+			Dictionary<Vector2I, int> distMap = new Dictionary<Vector2I, int>();
+
+			queue.Enqueue(center);
+			distMap[center] = 0;
+			results.Add(center);
+
+			while (queue.Count > 0)
+			{
+				Vector2I current = queue.Dequeue();
+				int currentDist = distMap[current];
+
+				// Jika sudah mencapai batas range, jangan cari tetangganya lagi
+				if (currentDist >= range) continue;
+
+				// Cek semua tetangga
+				foreach (Vector2I neighbor in GetNeighbors(current))
+				{
+					if (!distMap.ContainsKey(neighbor))
+					{
+						distMap[neighbor] = currentDist + 1;
+						queue.Enqueue(neighbor);
+						results.Add(neighbor);
+					}
+				}
+			}
+
+			return results;
+		}
+		public void UpdateEnemySight(Vector2I oldPos, Vector2I newPos, int range)
+		{
+
+			if (_enemySightHighlights.Count > 0)
+			{
+				ClearEnemySight();
+				ShowEnemySight(newPos, range);
+			}
+		}
+		// Update posisi lingkaran merah
+		public void MoveTargetHighlight(Vector2I newTargetPos)
+		{
+			// Asumsi Anda punya variabel _targetHighlightPolygon atau sejenisnya
+			// Jika tidak, panggil ulang ShowTargetHighlight
+
+			// Hapus yang lama (jika fungsi ShowTargetHighlight Anda tidak otomatis menghapus)
+			// ClearTargetHighlight(); 
+
+			// Buat baru di posisi baru
+			ShowTargetHighlight(newTargetPos);
+		}
+
+		// Fungsi untuk mengecek apakah sedang ada highlight sight aktif
+		public bool IsEnemySightActive()
+		{
+			return _enemySightHighlights.Count > 0;
+		}
+
+		// Dipanggil untuk menghilangkan highlight ungu
+		public void ClearEnemySight()
+		{
+			foreach (var poly in _enemySightHighlights)
+			{
+				if (GodotObject.IsInstanceValid(poly))
+				{
+					poly.QueueFree();
+				}
+			}
+			_enemySightHighlights.Clear();
+		}
+		public List<Vector2I> GetNeighbors(Vector2I cell)
     {
         List<Vector2I> list = new List<Vector2I>();
 
