@@ -2,8 +2,10 @@
 
 [ext_resource type="Script" uid="uid://dfdn7hnohdxr6" path="res://scripts/ui/BattleHUD.cs" id="1_dy3po"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dy3po"]
-bg_color = Color(1.0102807, 1.0102807, 0, 1)
+[sub_resource type="LabelSettings" id="LabelSettings_dy3po"]
+font_size = 24
+outline_size = 4
+outline_color = Color(0, 0, 0, 1)
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_p6blr"]
 bg_color = Color(0.16862746, 0.16862746, 0.16862746, 1)
@@ -33,49 +35,26 @@ corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
-[sub_resource type="LabelSettings" id="LabelSettings_dy3po"]
-font_size = 32
-outline_size = 4
-outline_color = Color(0, 0, 0, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dy3po"]
+bg_color = Color(1.0102807, 1.0102807, 0, 1)
 
-[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "PlayerHPBar", "PlayerAPBar", "CommandInput", "CommandFeedback")]
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("CommandInput", "CommandFeedback", "TurnLabel", "CombatLogLabel", "LogScroll", "PlayerHPBar", "PlayerAPBar", "HPLabel", "ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar") groups=["HUD"]]
 script = ExtResource("1_dy3po")
-ScoreLabel = NodePath("Control/ScoreLabel")
-ComboLabel = NodePath("Control/ComboLabel")
-ReactionPanel = NodePath("ReactionPanel")
-ReactionPromptLabel = NodePath("ReactionPanel/VboxContainer/ReactionPromptLabel")
-ReactionTimerBar = NodePath("ReactionPanel/VboxContainer/ReactionTimerBar")
-PlayerHPBar = NodePath("Control/HPBar")
-PlayerAPBar = NodePath("Control/APBar")
-CommandInput = NodePath("Control/CombatPanel/VBoxContainer/InputOverlay/CommandInput")
-CommandFeedback = NodePath("Control/CombatPanel/VBoxContainer/InputOverlay/CommandFeedback")
+CommandInput = NodePath("MainControl/CommandInput")
+CommandFeedback = NodePath("MainControl/CenterUI/CommandFeedback")
+TurnLabel = NodePath("MainControl/TurnLabel")
+CombatLogLabel = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScroll/CombatLogLabel")
+LogScroll = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScroll")
+PlayerHPBar = NodePath("MainControl/StatsUI/VBoxContainer/HPContainer/HPBar")
+PlayerAPBar = NodePath("MainControl/StatsUI/VBoxContainer/APContainer/APBar")
+HPLabel = NodePath("MainControl/StatsUI/VBoxContainer/HPContainer/HPLabel")
+ScoreLabel = NodePath("MainControl/StatsUI/VBoxContainer/ScoreLabel")
+ComboLabel = NodePath("MainControl/StatsUI/VBoxContainer/ComboLabel")
+ReactionPanel = NodePath("MainControl/ReactionPanel")
+ReactionPromptLabel = NodePath("MainControl/ReactionPanel/VboxContainer/ReactionPromptLabel")
+ReactionTimerBar = NodePath("MainControl/ReactionPanel/VboxContainer/ReactionTimerBar")
 
-[node name="ReactionPanel" type="PanelContainer" parent="." unique_id=1441546504]
-anchors_preset = 8
-anchor_left = 0.5
-anchor_top = 0.5
-anchor_right = 0.5
-anchor_bottom = 0.5
-offset_left = -28.5
-offset_top = -20.0
-offset_right = 28.5
-offset_bottom = 20.0
-grow_horizontal = 2
-grow_vertical = 2
-
-[node name="VboxContainer" type="VBoxContainer" parent="ReactionPanel" unique_id=1921342737]
-layout_mode = 2
-
-[node name="ReactionTimerBar" type="ProgressBar" parent="ReactionPanel/VboxContainer" unique_id=1055452086]
-layout_mode = 2
-theme_override_styles/fill = SubResource("StyleBoxFlat_dy3po")
-show_percentage = false
-
-[node name="ReactionPromptLabel" type="Label" parent="ReactionPanel/VboxContainer" unique_id=2018491589]
-layout_mode = 2
-text = "DODGE"
-
-[node name="Control" type="Control" parent="." unique_id=886510616]
+[node name="MainControl" type="Control" parent="." unique_id=1465589118]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -84,65 +63,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="ComboLabel" type="Label" parent="Control" unique_id=744383370]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -174.0
-offset_top = 12.0
-offset_right = -14.0
-offset_bottom = 35.0
-grow_horizontal = 0
-
-[node name="ScoreLabel" type="Label" parent="Control" unique_id=1072409048]
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -167.0
-offset_top = 45.0
-offset_right = -7.0
-offset_bottom = 68.0
-grow_horizontal = 0
-
-[node name="HPBar" type="ProgressBar" parent="Control" unique_id=258145136]
-layout_mode = 1
-offset_top = 25.0
-offset_right = 175.0
-offset_bottom = 50.0
-theme_override_styles/background = SubResource("StyleBoxFlat_p6blr")
-theme_override_styles/fill = SubResource("StyleBoxFlat_6uyy6")
-value = 50.0
-show_percentage = false
-
-[node name="APBar" type="ProgressBar" parent="Control" unique_id=311228537]
-layout_mode = 1
-offset_top = 49.0
-offset_right = 175.0
-offset_bottom = 74.0
-theme_override_styles/background = SubResource("StyleBoxFlat_nj5vo")
-theme_override_styles/fill = SubResource("StyleBoxFlat_ytn0o")
-value = 50.0
-show_percentage = false
-
-[node name="EndTurnBtn" type="Button" parent="Control" unique_id=417996157]
-visible = false
-layout_mode = 1
-anchors_preset = 6
-anchor_left = 1.0
-anchor_top = 0.5
-anchor_right = 1.0
-anchor_bottom = 0.5
-offset_left = -90.0
-offset_top = -15.5
-offset_bottom = 15.5
-grow_horizontal = 0
-grow_vertical = 2
-focus_mode = 0
-text = "END TURN"
-
-[node name="TurnLabel" type="Label" parent="Control" unique_id=1822211855]
+[node name="TurnLabel" type="Label" parent="MainControl" unique_id=1822211855]
 layout_mode = 1
 anchors_preset = 10
 anchor_right = 1.0
@@ -153,60 +74,141 @@ label_settings = SubResource("LabelSettings_dy3po")
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CombatPanel" type="PanelContainer" parent="Control" unique_id=1592999210]
-custom_minimum_size = Vector2(0, 100)
+[node name="LogAnchor" type="MarginContainer" parent="MainControl" unique_id=1324041813]
 layout_mode = 1
-anchors_preset = 12
+anchors_preset = 2
 anchor_top = 1.0
-anchor_right = 1.0
 anchor_bottom = 1.0
-offset_top = -100.0
+offset_top = -220.0
+offset_right = 430.0
+grow_vertical = 0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_bottom = 20
+
+[node name="LogBackground" type="PanelContainer" parent="MainControl/LogAnchor" unique_id=1627618403]
+layout_mode = 2
+
+[node name="LogMargin" type="MarginContainer" parent="MainControl/LogAnchor/LogBackground" unique_id=777923430]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+
+[node name="LogScroll" type="ScrollContainer" parent="MainControl/LogAnchor/LogBackground/LogMargin" unique_id=1863086656]
+custom_minimum_size = Vector2(400, 200)
+layout_mode = 2
+horizontal_scroll_mode = 0
+
+[node name="CombatLogLabel" type="RichTextLabel" parent="MainControl/LogAnchor/LogBackground/LogMargin/LogScroll" unique_id=1734370348]
+custom_minimum_size = Vector2(200, 0)
+layout_mode = 2
+size_flags_vertical = 3
+bbcode_enabled = true
+fit_content = true
+scroll_active = false
+tab_size = 15
+
+[node name="StatsUI" type="MarginContainer" parent="MainControl" unique_id=832203307]
+layout_mode = 1
+offset_right = 175.0
+offset_bottom = 127.0
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 20
+
+[node name="VBoxContainer" type="VBoxContainer" parent="MainControl/StatsUI" unique_id=1226526925]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+theme_override_constants/separation = 5
+
+[node name="HPContainer" type="HBoxContainer" parent="MainControl/StatsUI/VBoxContainer" unique_id=697905129]
+layout_mode = 2
+
+[node name="HPBar" type="ProgressBar" parent="MainControl/StatsUI/VBoxContainer/HPContainer" unique_id=258145136]
+custom_minimum_size = Vector2(150, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_p6blr")
+theme_override_styles/fill = SubResource("StyleBoxFlat_6uyy6")
+value = 50.0
+show_percentage = false
+
+[node name="HPLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer/HPContainer" unique_id=1278918723]
+layout_mode = 2
+
+[node name="APContainer" type="HBoxContainer" parent="MainControl/StatsUI/VBoxContainer" unique_id=2124650528]
+layout_mode = 2
+
+[node name="APBar" type="ProgressBar" parent="MainControl/StatsUI/VBoxContainer/APContainer" unique_id=311228537]
+custom_minimum_size = Vector2(150, 20)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_nj5vo")
+theme_override_styles/fill = SubResource("StyleBoxFlat_ytn0o")
+value = 50.0
+show_percentage = false
+
+[node name="APLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer/APContainer" unique_id=246387147]
+layout_mode = 2
+
+[node name="ScoreLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer" unique_id=1072409048]
+layout_mode = 2
+
+[node name="ComboLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer" unique_id=744383370]
+layout_mode = 2
+
+[node name="ReactionPanel" type="PanelContainer" parent="MainControl" unique_id=1441546504]
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -28.5
+offset_top = -40.0
+offset_right = 28.5
 grow_horizontal = 2
 grow_vertical = 0
 
-[node name="APLabel" type="Label" parent="Control/CombatPanel" unique_id=246387147]
+[node name="VboxContainer" type="VBoxContainer" parent="MainControl/ReactionPanel" unique_id=1921342737]
 layout_mode = 2
 
-[node name="VBoxContainer" type="VBoxContainer" parent="Control/CombatPanel" unique_id=2133263695]
+[node name="ReactionTimerBar" type="ProgressBar" parent="MainControl/ReactionPanel/VboxContainer" unique_id=1055452086]
 layout_mode = 2
+theme_override_styles/fill = SubResource("StyleBoxFlat_dy3po")
+show_percentage = false
 
-[node name="CombatLog" type="RichTextLabel" parent="Control/CombatPanel/VBoxContainer" unique_id=1734370348]
+[node name="ReactionPromptLabel" type="Label" parent="MainControl/ReactionPanel/VboxContainer" unique_id=2018491589]
 layout_mode = 2
-size_flags_vertical = 3
-fit_content = true
-tab_size = 15
+text = "DODGE"
 
-[node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer" unique_id=1274233966]
-layout_mode = 2
-
-[node name="InputOverlay" type="Control" parent="Control/CombatPanel/VBoxContainer" unique_id=1534977550]
-custom_minimum_size = Vector2(0, 40)
-layout_mode = 2
-
-[node name="CommandFeedback" type="RichTextLabel" parent="Control/CombatPanel/VBoxContainer/InputOverlay" unique_id=2032741679 groups=["HUD"]]
+[node name="CenterUI" type="CenterContainer" parent="MainControl" unique_id=2060450925]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -93.5
-offset_top = -20.0
-offset_right = 93.5
-offset_bottom = 20.0
+offset_left = -400.0
+offset_top = -50.0
+offset_right = 400.0
+offset_bottom = 50.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="CommandFeedback" type="RichTextLabel" parent="MainControl/CenterUI" unique_id=2032741679]
+custom_minimum_size = Vector2(800, 100)
+layout_mode = 2
 mouse_filter = 2
+theme_override_font_sizes/normal_font_size = 32
 bbcode_enabled = true
 fit_content = true
 horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="CommandInput" type="LineEdit" parent="Control/CombatPanel/VBoxContainer/InputOverlay" unique_id=805460690]
+[node name="CommandInput" type="LineEdit" parent="MainControl" unique_id=805460690]
+modulate = Color(1, 1, 1, 0)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_right = 28.5
 grow_horizontal = 2
 grow_vertical = 2
 alignment = 1

@@ -269,7 +269,7 @@ namespace MementoTest.Entities
 					// Jika kena musuh, matikan highlight kuning (move)
 					_mapManager?.ClearHighlight();
 					_isHighlightActive = false;
-					return; 
+					return;
 				}
 
 				// 3. LOGIKA GRID / MOVEMENT
@@ -329,6 +329,11 @@ namespace MementoTest.Entities
 				_mapManager?.ClearHighlight();
 				_mapManager?.ClearEnemySight();
 				_isHighlightActive = false;
+			}
+			if (_hud != null && _hud.IsBusy)
+			{
+				// Jika kursor mouse mengganggu, kita bisa 'consume' inputnya di sini
+				return;
 			}
 		}
 

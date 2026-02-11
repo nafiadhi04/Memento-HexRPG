@@ -17,6 +17,7 @@
 [ext_resource type="Resource" uid="uid://b3mkjpu02oqfy" path="res://resources/commands/enemymovelist/Blunt.tres" id="13_3jqmn"]
 [ext_resource type="Resource" uid="uid://dns5bu7bkdprg" path="res://resources/commands/enemymovelist/ArrowShot.tres" id="14_o6frn"]
 [ext_resource type="Resource" uid="uid://xjnk6k2vowsq" path="res://resources/enemyai/Kiting.tres" id="15_3jqmn"]
+[ext_resource type="PackedScene" uid="uid://dxvef7x3tcy2a" path="res://scenes/ui/pause_menu.tscn" id="18_o6frn"]
 
 [sub_resource type="Resource" id="Resource_jtcbb"]
 script = ExtResource("5_jtcbb")
@@ -52,7 +53,7 @@ script = ExtResource("1_brv2t")
 
 [node name="Projectile" parent="." unique_id=1105907238 instance=ExtResource("7_jtcbb")]
 
-[node name="BattleHUD" parent="." unique_id=682286073 groups=["HUD"] instance=ExtResource("5_43vid")]
+[node name="BattleHUD" parent="." unique_id=682286073 instance=ExtResource("5_43vid")]
 layer = 2
 
 [node name="TileSelector" parent="." unique_id=2025738061 instance=ExtResource("2_8hc5g")]
@@ -98,3 +99,5 @@ SkillList = Array[Object]([ExtResource("13_3jqmn"), ExtResource("14_o6frn")])
 AiProfile = ExtResource("15_3jqmn")
 TargetingProfile = SubResource("Resource_df41j")
 SpeedBonusProfile = SubResource("Resource_84bhp")
+
+[node name="PauseMenu" parent="." unique_id=877414348 instance=ExtResource("18_o6frn")]

@@ -1,456 +1,243 @@
 using Godot;
-using System;
-using System.Threading.Tasks;
 using MementoTest.Core;
+using System;
 using System.Collections.Generic;
-using MementoTest.Resources;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using static Godot.Control;
 
 namespace MementoTest.UI
 {
 	public partial class BattleHUD : CanvasLayer
 	{
-		// --- SIGNALS ---
+		#region Signals
 		[Signal] public delegate void CommandSubmittedEventHandler(string commandText);
+		[Signal] public delegate void ReactionSuccessEventHandler();
 		[Signal] public delegate void EndTurnRequestedEventHandler();
-		// (Signal ReactionEnded dihapus karena kita ganti pakai Task yang lebih canggih)
-		[Signal]
-		public delegate void ReactionSuccessEventHandler();
+		#endregion
 
 
-		[Export] public Label ScoreLabel;
-		[Export] public Label ComboLabel;
+		#region UI References
+		[ExportGroup("Command System")]
+		[Export] public LineEdit CommandInput;        // Input Transparan (Hidden)
+		[Export] public RichTextLabel CommandFeedback; // Teks Visual Tengah Layar
+		[ExportGroup("Turn Info")]
+		[Export] public Label TurnLabel;
 
-		// =============================
-		// PLAYER COMMAND DATA
-		// =============================
-		private HashSet<string> _availableCommands = new HashSet<string>();
+		[ExportGroup("Combat Log")]
+		[Export] public RichTextLabel CombatLogLabel;
+		[Export] public ScrollContainer LogScroll;
 
-		// --- EXPORT UI ---
-		[Export] public Control ReactionPanel;
-		[Export] public Label ReactionPromptLabel;
-		[Export] public ProgressBar ReactionTimerBar;
+		[ExportGroup("Combat UI")]
+		[Export] public Control CombatPanel;
 
-		// Warna Hex untuk BBCode
-		private const string COLOR_CORRECT = "#00FF00"; // Hijau (Benar)
-		private const string COLOR_WRONG = "#FF0000";   // Merah (Typo)
-		private const string COLOR_GHOST = "#FFFFFF40"; // Abu-abu (Sisa kata/Hi
-
-
-
-		// --- [BARU] PLAYER STATS BARS ---
+		[ExportGroup("Stats")]
 		[Export] public ProgressBar PlayerHPBar;
 		[Export] public ProgressBar PlayerAPBar;
 		[Export] public Label HPLabel;
+		[Export] public Label ScoreLabel;
+		[Export] public Label ComboLabel;
 
-		// --- INTERNAL ---// =============================
-		// INPUT STATE
-		// =============================
-		private bool _isPlayerCommandPhase = false;   // giliran player ngetik command attack
-		private bool _isReactionPhase = false;        // parry / dodge
-		private string _expectedCommand = "";         // command attack yang valid
-		private string _expectedReactionWord = "";    // parry / dodge
+		[ExportGroup("Reaction UI")]
+		[Export] public Control ReactionPanel;
+		[Export] public Label ReactionPromptLabel;
+		[Export] public ProgressBar ReactionTimerBar;
+		#endregion
 
+		#region Configuration & State
+		private const string COLOR_CORRECT = "#00FF00";
+		private const string COLOR_WRONG = "#FF4444";
+		private const string COLOR_GHOST = "#FFFFFF40";
+		private const int MAX_LOG_LINES = 30;
 
-		//  Wadah untuk menunggu hasil input player
+		private HashSet<string> _availableCommands = new HashSet<string>();
 		private TaskCompletionSource<bool> _reactionTaskSource;
-
 		private Tween _timerTween;
 
-		private Control _combatPanel;
-		private LineEdit _commandInput;
-		private RichTextLabel _combatLog;
+		private string _expectedReactionWord = "";
+		private bool _isReactionPhase = false;
+		private bool _canEndTurn = false;
 
-		// --- EXPORT UI ---
-		[ExportGroup("Command System")]
-		[Export] public LineEdit CommandInput;        // Input asli (Transparan)
-		[Export] public RichTextLabel CommandFeedback;
-		private Label _apLabel;
-		private Button _endTurnBtn;
-		private TaskCompletionSource<bool> _reactionTcs;
-		private bool _isWaitingReaction;
-		private double _reactionStartTime;
-		public float LastReactionTime { get; private set; }
+		// Properti publik untuk mengecek apakah HUD sedang menunggu input penting
+		public bool IsBusy => _isReactionPhase || (_reactionTaskSource != null && !_reactionTaskSource.Task.IsCompleted);
+		#endregion
 
-		private string _expectedWord = "";
-		private bool _reactionActive = false;
-		public bool IsBusy { get; private set; }
+		private float _reactionStartTime; // Untuk mencatat kapan prompt muncul
+		public float LastReactionTime { get; private set; } // Properti yang dicari EnemyController
 
-
-
-
+		#region Lifecycle
 		public override void _Ready()
 		{
-			GD.Print($"[HUD] Score visible: {ScoreLabel.Visible}");
-
-			if (ReactionPanel != null)
-				ReactionPanel.Visible = false;
-
-			_endTurnBtn = GetNodeOrNull<Button>("Control/EndTurnBtn");
-			if (_endTurnBtn != null)
-				_endTurnBtn.Pressed += () => EmitSignal(SignalName.EndTurnRequested);
-
-			if (PlayerHPBar != null)
-			{
-				PlayerHPBar.MaxValue = PlayerHPBar.MaxValue;
-				PlayerHPBar.Value = PlayerHPBar.MaxValue;
-				PlayerHPBar.Modulate = Colors.White;
-			}
-
-			if (PlayerAPBar != null)
-			{
-				PlayerAPBar.Value = PlayerAPBar.MaxValue;
-			}
-
-			SetupCombatUI();
-
-			// Auto-assign jika belum di-set di Inspector
-			if (CommandInput == null) CommandInput = GetNodeOrNull<LineEdit>("%CommandInput");
-			if (CommandFeedback == null) CommandFeedback = GetNodeOrNull<RichTextLabel>("%CommandFeedback");
+			if (ReactionPanel != null) ReactionPanel.Visible = false;
+			if (CombatPanel != null) CombatPanel.Visible = false;
 
 			if (CommandInput != null)
 			{
-				CommandInput.TextChanged += OnCommandInputChanged;
-				CommandInput.TextSubmitted += OnCommandEntered;
+				// Bersihkan koneksi lama agar tidak double trigger
+				if (CommandInput.IsConnected(LineEdit.SignalName.TextSubmitted, Callable.From<string>(OnCommandEntered)))
+					CommandInput.TextSubmitted -= OnCommandEntered;
 
-				// Pastikan input asli transparan agar tidak menutupi teks warna
-				// (Tapi caret/kursor tetap terlihat jika tema default)
+				CommandInput.TextSubmitted += OnCommandEntered;
+				CommandInput.TextChanged += OnCommandInputChanged;
+
+				// Buat input asli tak terlihat tapi tetap fungsional
 				CommandInput.Modulate = new Color(1, 1, 1, 0);
+			}
+		}
+		public override void _Process(double delta)
+		{
+			// Hanya rebut fokus jika benar-benar hilang, bukan setiap frame
+			if (_isReactionPhase && CommandInput != null)
+			{
+				if (!CommandInput.HasFocus() && CommandInput.Visible && CommandInput.Editable)
+				{
+					CommandInput.GrabFocus();
+				}
+			}
+		}
+		private void InitializeHUD()
+		{
+			SetupInputStyle();
+			ClearLog();
+
+			if (ReactionPanel != null)
+				ReactionPanel.Visible = false;
+		}
+		#endregion
+
+		#region Input Logic
+		private void SetupInputStyle()
+		{
+			if (CommandInput != null)
+			{
+				CommandInput.Modulate = new Color(1, 1, 1, 0); // Sembunyikan input asli
+				CommandInput.MouseFilter = Control.MouseFilterEnum.Stop;
+				CommandInput.GrabFocus();
 			}
 
 			if (CommandFeedback != null)
 			{
 				CommandFeedback.BbcodeEnabled = true;
+				CommandFeedback.Text = string.Empty;
+			}
+		}
+
+		private void OnCommandInputChanged(string newText)
+		{
+			if (string.IsNullOrEmpty(newText) || CommandFeedback == null)
+			{
 				CommandFeedback.Text = "";
+				return;
 			}
 
-			if (ReactionPanel != null) ReactionPanel.Visible = false;
+			string input = newText.ToUpper();
 
-			_commandInput = GetNode<LineEdit>(
-				"Control/CombatPanel/VBoxContainer/CommandInput"
-
-				
-			);
-
-			//  CONNECT SEKALI 
-			_commandInput.TextSubmitted += OnCommandEntered;
-			_commandInput.TextChanged += OnCommandInputChanged;
-
-			// Optional safety
-			_commandInput.Editable = true;
-			_commandInput.MouseFilter = Control.MouseFilterEnum.Stop;
-
-			CallDeferred("ConnectToScoreManager");
-
-			GD.Print("[HUD] BattleHUD Ready - Input connected ONCE");
-		}
-
-		private void ConnectToScoreManager()
-		{
-			if (ScoreManager.Instance != null)
-			{
-				ScoreManager.Instance.ScoreUpdated += OnScoreUpdated;
-				ScoreManager.Instance.ComboUpdated += OnComboUpdated;
-
-				// Reset tampilan awal
-				OnScoreUpdated(0);
-				OnComboUpdated(0);
-			}
-		}
-
-		private void OnScoreUpdated(int newScore)
-		{
-			if (ScoreLabel != null) ScoreLabel.Text = $"SCORE: {newScore:N0}"; // N0 biar ada titik (1.000)
-		}
-
-		private void OnComboUpdated(int newCombo)
-		{
-			if (ComboLabel != null)
-			{
-				ComboLabel.Text = $"COMBO: x{newCombo}";
-
-				// Efek visual sederhana: Warna berubah kalau combo tinggi
-				if (newCombo > 5) ComboLabel.Modulate = Colors.Yellow;
-				else ComboLabel.Modulate = Colors.White;
-
-				// Animasi kecil (Punch)
-				var tween = CreateTween();
-				ComboLabel.Scale = new Vector2(1.5f, 1.5f);
-				tween.TweenProperty(ComboLabel, "scale", Vector2.One, 0.2f);
-			}
-		}
-
-		private void SetupCombatUI()
-		{
-			if (!HasNode("Control/CombatPanel")) return;
-			if (_combatPanel == null) _combatPanel = GetNodeOrNull<Control>("Control/CombatPanel");
-
-			// Pastikan panel combat tersembunyi di awal
-			if (_combatPanel != null) _combatPanel.Visible = false;
-
-			_combatPanel = GetNode<Control>("Control/CombatPanel");
-			_combatLog = _combatPanel.GetNodeOrNull<RichTextLabel>("VBoxContainer/CombatLog");
-			_commandInput = _combatPanel.GetNodeOrNull<LineEdit>("VBoxContainer/CommandInput");
-
-			_apLabel = _combatPanel.GetNodeOrNull<Label>("VBoxContainer/APLabel")
-					?? _combatPanel.GetNodeOrNull<Label>("APLabel");
-
-			_combatPanel.Visible = false;
-		}
-
-		public override void _Process(double delta)
-		{
-			// Logika Timer & Fokus saat Fase Reaksi
-			if (_isReactionPhase && ReactionPanel.Visible)
-			{
-				// Paksa Fokus ke Input agar player bisa langsung ketik
-				if (_commandInput != null && !_commandInput.HasFocus())
-					_commandInput.GrabFocus();
-
-				// Hitung Mundur Waktu
-				if (ReactionTimerBar != null)
-				{
-					ReactionTimerBar.Value -= delta;
-					if (ReactionTimerBar.Value <= 0)
-					{
-						FailReaction("TIMEOUT");
-					}
-				}
-			}
-		}
-
-		// --- FUNGSI UTAMA (DIPANGGIL MUSUH) ---
-		public async Task<bool> WaitForPlayerReaction(string expectedWord, float timeLimit)
-		{
-			// =============================
-			// 1. CANCEL PREVIOUS REACTION (SAFE)
-			// =============================
-			if (_reactionTaskSource != null && !_reactionTaskSource.Task.IsCompleted)
-			{
-				_reactionTaskSource.TrySetResult(false);
-			}
-
-			_reactionTaskSource = new TaskCompletionSource<bool>();
-
-			if (_timerTween != null && _timerTween.IsValid())
-				_timerTween.Kill();
-
-			_isReactionPhase = true;
-			_expectedReactionWord = expectedWord.ToLower();
-
-			_reactionStartTime = Time.GetUnixTimeFromSystem();
-
-			_commandInput.Clear();
-			_commandInput.Modulate = Colors.White;
-			_commandInput.Editable = true;
-			_commandInput.Visible = true;
-
-			// tunggu 1 frame supaya UI siap
-			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
-
-			_commandInput.GrabFocus();
-
-			// =============================
-			// 3. SETUP UI
-			// =============================
-			ShowCombatPanel(true);
-
-			if (ReactionPanel == null)
-			{
-				GD.PrintErr("[HUD] ReactionPanel NULL!");
-				return false;
-			}
-			_reactionTcs = new TaskCompletionSource<bool>();
-
-			ReactionPanel.Visible = true;
-
-			if (ReactionPromptLabel != null)
-			{
-				ReactionPromptLabel.Text = $"TYPE: {expectedWord.ToUpper()}!";
-			}
-
-			if (ReactionTimerBar != null)
-			{
-				ReactionTimerBar.MaxValue = timeLimit;
-				ReactionTimerBar.Value = timeLimit;
-
-				_timerTween = CreateTween();
-				_timerTween.TweenProperty(
-					ReactionTimerBar,
-					"value",
-					0,
-					timeLimit
-				).SetTrans(Tween.TransitionType.Linear);
-
-				_timerTween.TweenCallback(Callable.From(() =>
-				{
-					if (_reactionTaskSource != null && !_reactionTaskSource.Task.IsCompleted)
-					{
-						GD.Print("[HUD] REACTION TIMEOUT");
-						FailReaction("TIMEOUT");
-					}
-				}));
-			}
-
-			// =============================
-			// 4. INPUT PREPARATION (FOCUS SAFE)
-			// =============================
-			if (_commandInput != null)
-			{
-				_commandInput.Visible = true;
-				_commandInput.Editable = true;
-				_commandInput.Clear();
-				_commandInput.Modulate = Colors.White;
-
-				// tunggu 1 frame agar UI siap sepenuhnya
-				await ToSignal(GetTree(), "process_frame");
-
-				_commandInput.GrabFocus();
-				GD.Print($"[HUD] Input Focus FORCED. Owner: {_commandInput.Name}");
-			}
-
-			GD.Print($"[HUD] WAITING INPUT: '{expectedWord}'");
-
-			// =============================
-			// 5. WAIT RESULT
-			// =============================
-			bool result = await _reactionTaskSource.Task;
-
-			// =============================
-			// 6. CLEANUP (FINAL & CONSISTENT)
-			// =============================
-			_isReactionPhase = false;
-			_commandInput.Modulate = Colors.White;
-
-			if (_timerTween != null && _timerTween.IsValid())
-				_timerTween.Kill();
-
-			if (ReactionPanel != null)
-				ReactionPanel.Visible = false;
-
-			if (_commandInput != null)
-			{
-				_commandInput.Clear();
-				_commandInput.Modulate = Colors.White;
-				_commandInput.ReleaseFocus();
-			}
-
-			if (result)
-			{
-				EmitSignal(SignalName.ReactionSuccess);
-			}
-
-			return result;
-		}
-
-
-
-
-		// --- INPUT HANDLER ---
-		private void OnCommandEntered(string text)
-		{
-			// [PERUBAHAN] Trim + ToUpper
-			string cleanText = text.Trim().ToUpper();
-
-			// 1. Logic Reaction
+			// --- 1. LOGIKA AUTO-SUBMIT (Jika Ketikan Benar Total) ---
 			if (_isReactionPhase)
 			{
-				// Bandingkan dengan expected reaction (juga di-ToUpper)
-				if (cleanText == _expectedReactionWord.ToUpper())
+				if (input == _expectedReactionWord)
 				{
 					_reactionTaskSource?.TrySetResult(true);
+					return;
 				}
-				else
-				{
-					FailReaction("TYPO");
-				}
+			}
+			else if (_availableCommands.Contains(input))
+			{
+				// Langsung submit tanpa perlu tekan Enter
+				EmitSignal(SignalName.CommandSubmitted, input);
 				ResetInputUI();
 				return;
 			}
 
-			// 2. Logic Normal Command
-			// Validasi apakah command ada di daftar
-			if (_availableCommands.Contains(cleanText))
+			// --- 2. LOGIKA STRICT TYPO (Satu Huruf Salah = Missed) ---
+			string target = _isReactionPhase ? _expectedReactionWord : FindBestMatch(input);
+
+			if (string.IsNullOrEmpty(target) || !target.StartsWith(input))
 			{
-				EmitSignal(SignalName.CommandSubmitted, cleanText);
-			}
-			else
-			{
-				EmitSignal(SignalName.CommandSubmitted, cleanText);
-			}
+				// TYPO TERDETEKSI!
+				if (_isReactionPhase)
+				{
+					_reactionTaskSource?.TrySetResult(false);
+				}
+				else
+				{
+					// Beri feedback visual bahwa serangan meleset
+					CommandFeedback.Text = $"[center][color={COLOR_WRONG}]MISSED! [/color][/center]";
+					LogToTerminal(">>> ATTACK MISSED: TYPO!", Colors.Red);
 
-			ResetInputUI();
-		}
+					// Kirim signal MISSED ke TurnManager/PlayerController jika perlu
+					EmitSignal(SignalName.CommandSubmitted, "MISSED");
+				}
 
-
-
-		private void ResetInputUI()
-		{
-			if (CommandInput != null) CommandInput.Clear();
-			if (CommandFeedback != null) CommandFeedback.Text = "";
-		}
-
-		// ==========================================================
-		//  STATE MANAGEMENT
-		// ==========================================================
-
-		// Dipanggil PlayerController saat giliran player mulai
-		public void EnterPlayerCommandPhase(IEnumerable<string> commands)
-		{
-			_isReactionPhase = false;
-
-			_availableCommands.Clear();
-			// [PERUBAHAN] Simpan semua sebagai UpperCase
-			foreach (var cmd in commands) _availableCommands.Add(cmd.ToUpper());
-
-			EnableInputUI(true);
-			GD.Print("[HUD] Player Command Phase Started");
-		}
-		private void OnCommandInputChanged(string newText)
-		{
-			if (string.IsNullOrEmpty(newText))
-			{
-				if (CommandFeedback != null) CommandFeedback.Text = "";
+				// Reset input setelah jeda singkat agar player bisa melihat tulisan "MISSED"
+				ResetInputWithDelay();
 				return;
 			}
 
-			// [PERUBAHAN] Paksa UpperCase di sini
-			string input = newText.ToUpper();
-			string bestMatch = "";
-			string bbcode = "";
+			// --- 3. VISUAL FEEDBACK (Jika Masih Benar) ---
+			UpdateFeedbackVisuals(input, target);
+		}
 
-			// --- A. FASE REAKSI (PARRY/DODGE) ---
-			if (_isReactionPhase)
-			{
-				// Pastikan target juga UpperCase
-				bestMatch = _expectedReactionWord.ToUpper();
-			}
-			// --- B. FASE COMMAND BIASA (ATTACK) ---
-			else
-			{
-				// Cari skill yang cocok (Asumsi daftar skill sudah UpperCase semua)
-				bestMatch = FindBestMatch(input);
-			}
+		private async void ResetInputWithDelay()
+		{
+			// Kunci input agar tidak bisa ngetik saat animasi gagal
+			CommandInput.Editable = false;
 
-			// --- C. GENERATE WARNA (BBCODE) ---
-			if (!string.IsNullOrEmpty(bestMatch))
+			// Tunggu sebentar (0.5 detik) agar player bisa baca feedback
+			await ToSignal(GetTree().CreateTimer(0.5f), SceneTreeTimer.SignalName.Timeout);
+
+			ResetInputUI();
+			CommandInput.Editable = true;
+			CommandInput.GrabFocus();
+		}
+		private string FormatReactionText(string input, string target)
+		{
+			if (string.IsNullOrEmpty(target)) return "";
+
+			string formatted = "";
+
+			// Kita looping berdasarkan panjang kata target (misal: PARRY)
+			for (int i = 0; i < target.Length; i++)
 			{
-				for (int i = 0; i < input.Length; i++)
+				if (i < input.Length)
 				{
-					if (i < bestMatch.Length && input[i] == bestMatch[i])
+					// Jika huruf yang diketik sesuai dengan target
+					if (input[i] == target[i])
 					{
-						bbcode += $"[color={COLOR_CORRECT}]{input[i]}[/color]"; // Hijau
+						formatted += $"[color=#ffffff]{target[i]}[/color]"; // Putih terang
 					}
 					else
 					{
-						bbcode += $"[color={COLOR_WRONG}]{input[i]}[/color]"; // Merah
+						formatted += $"[color=#ff6666]{target[i]}[/color]"; // Merah (salah ketik)
 					}
 				}
-
-				// Ghost Text (Sisa Huruf)
-				if (input.Length < bestMatch.Length)
+				else
 				{
-					string ghostSuffix = bestMatch.Substring(input.Length);
-					bbcode += $"[color={COLOR_GHOST}]{ghostSuffix}[/color]";
+					// Huruf yang belum diketik (Ghost Text)
+					formatted += $"[color=#ffffff40]{target[i]}[/color]"; // Transparan/Abu-abu
+				}
+			}
+
+			return $"[center]{formatted}[/center]";
+		}
+		private void UpdateFeedbackVisuals(string input, string target)
+		{
+			string bbcode = "";
+
+			if (!string.IsNullOrEmpty(target))
+			{
+				// Warnai setiap huruf yang diketik
+				for (int i = 0; i < input.Length; i++)
+				{
+					bool isCorrect = i < target.Length && input[i] == target[i];
+					bbcode += $"[color={(isCorrect ? COLOR_CORRECT : COLOR_WRONG)}]{input[i]}[/color]";
+				}
+
+				// Tambahkan Ghost Text untuk sisa kata
+				if (input.Length < target.Length)
+				{
+					bbcode += $"[color={COLOR_GHOST}]{target.Substring(input.Length)}[/color]";
 				}
 			}
 			else
@@ -458,256 +245,243 @@ namespace MementoTest.UI
 				bbcode = $"[color={COLOR_WRONG}]{input}[/color]";
 			}
 
-			if (CommandFeedback != null) CommandFeedback.Text = $"[center]{bbcode}[/center]";
+			CommandFeedback.Text = $"[center]{bbcode}[/center]";
 		}
 
-		private string FindBestMatch(string input)
-		{
+		private string FindBestMatch(string input) =>
+			_availableCommands.FirstOrDefault(cmd => cmd.StartsWith(input));
 
-			foreach (var cmd in _availableCommands)
-			{
-				
-				if (cmd.ToUpper().StartsWith(input)) return cmd.ToUpper();
-			}
-			return null;
-		}	
-		private void UpdateTypingColor(string input, string expected)
+		private void OnCommandEntered(string text)
 		{
-			if (string.IsNullOrEmpty(input))
+			string cleanText = text.Trim().ToUpper();
+
+			if (_isReactionPhase)
 			{
-				_commandInput.Modulate = Colors.White;
+				if (cleanText == _expectedReactionWord)
+					_reactionTaskSource?.TrySetResult(true);
+				else
+					_reactionTaskSource?.TrySetResult(false); // Gagal jika typo dan tekan enter
+
 				return;
 			}
 
-			for (int i = 0; i < input.Length; i++)
+			// Jalankan perintah giliran player
+			if (_availableCommands.Contains(cleanText) || cleanText == "END")
 			{
-				if (i >= expected.Length || input[i] != expected[i])
-				{
-					_commandInput.Modulate = Colors.IndianRed;
-					return;
-				}
+				EmitSignal(SignalName.CommandSubmitted, cleanText);
 			}
 
-			_commandInput.Modulate = Colors.LimeGreen;
+			CommandInput.Clear();
+			CommandFeedback.Text = "";
 		}
 
-
-		private void FailReaction(string reason)
-		{
-			if (!_isReactionPhase)
-				return;
-
-			GD.Print($"[HUD] REACTION FAILED: {reason}");
-
-			if (!_reactionTaskSource.Task.IsCompleted)
-				_reactionTaskSource.SetResult(false);
-
-			_isReactionPhase = false;
-
-			if (ReactionPromptLabel != null)
-				ReactionPromptLabel.Text = "FAILED!";
-
-			_commandInput.Modulate = Colors.Red;
-		}
-
-		public void SetAvailableCommands(IEnumerable<PlayerSkill> skills)
-		{
-			_availableCommands.Clear();
-
-			foreach (var skill in skills)
-			{
-				_availableCommands.Add(skill.CommandName.ToLower());
-			}
-
-			GD.Print($"[HUD] Available Commands: {string.Join(", ", _availableCommands)}");
-		}
-
-
-		public async void asEnterPlayerCommandPhase(IEnumerable<string> commands)
-		{
-			if (_commandInput == null)
-			{
-				GD.PrintErr("[HUD] CommandInput is NULL in EnterPlayerCommandPhase");
-				return;
-			}
-
-			_isPlayerCommandPhase = true;
-			_isReactionPhase = false;
-
-			_availableCommands = new HashSet<string>(commands);
-
-			_commandInput.Visible = true;
-			_commandInput.Editable = true;
-			_commandInput.Clear();
-			_commandInput.Modulate = Colors.White;
-
-			await ToSignal(GetTree(), "process_frame");
-			_commandInput.GrabFocus();
-
-			GD.Print("[HUD] Player command phase started");
-		}
-
-
-		private void FocusCommandInput()
-		{
-			_commandInput.GrabFocus();
-		}
-		private bool IsValidCommand(string command)
-		{
-			return _availableCommands.Contains(command);
-		}
-
-
-		public void ExitPlayerCommandPhase()
-		{
-			_isPlayerCommandPhase = false;
-			_commandInput.ReleaseFocus();
-		}
-
-		public void EnableInputUI(bool enable)
-		{
-			if (_combatPanel != null) _combatPanel.Visible = enable;
-
-			if (enable && CommandInput != null)
-			{
-				CommandInput.Editable = true;
-				CommandInput.Clear();
-				CommandInput.GrabFocus();
-			}
-		}
-
-		// --- Helper Methods ---
 		public void ShowCombatPanel(bool show)
 		{
-			if (_combatPanel != null)
-			{
-				_combatPanel.Visible = show;
-				if (show && _commandInput != null) _commandInput.GrabFocus();
-			}
+			// Mengontrol panel stats/HP, bukan panel Dodge
+			if (CombatPanel != null) CombatPanel.Visible = show;
 		}
+		public void UpdateTurnLabel(string turnName)
+		{
+			if (TurnLabel == null) return;
+
+			TurnLabel.Text = turnName.ToUpper();
+
+			// Opsional: Beri warna berbeda agar lebih kontras
+			if (turnName.ToUpper().Contains("PLAYER"))
+				TurnLabel.Modulate = Colors.SkyBlue;
+			else if (turnName.ToUpper().Contains("ENEMY"))
+				TurnLabel.Modulate = Colors.OrangeRed;
+			else
+				TurnLabel.Modulate = Colors.White;
+		}
+		private void ResetInputUI()
+		{
+			CommandInput?.Clear();
+			if (CommandFeedback != null) CommandFeedback.Text = string.Empty;
+		}
+		#endregion
+
+		#region Combat Log System
 		public void LogToTerminal(string message, Color color)
 		{
-			if (_combatLog != null)
+			if (CombatLogLabel == null) return;
+
+			string timeStr = DateTime.Now.ToString("HH:mm:ss");
+			string newLine = $"[color=#888888][{timeStr}][/color] [color={color.ToHtml()}]{message}[/color]";
+
+			// Tambahkan baris baru dan batasi jumlah baris agar tidak lag
+			var lines = CombatLogLabel.Text.Split('\n').ToList();
+			if (lines.Count >= MAX_LOG_LINES) lines.RemoveAt(0);
+
+			CombatLogLabel.Text = string.Join('\n', lines);
+			if (!string.IsNullOrEmpty(CombatLogLabel.Text)) CombatLogLabel.Text += "\n";
+			CombatLogLabel.Text += newLine;
+
+			ScrollToBottom();
+		}
+
+		private async void ScrollToBottom()
+		{
+			if (LogScroll == null) return;
+			await ToSignal(GetTree(), "process_frame");
+			LogScroll.ScrollVertical = (int)LogScroll.GetVScrollBar().MaxValue;
+		}
+
+		private void ClearLog() => CombatLogLabel.Text = string.Empty;
+		#endregion
+
+		#region Reaction Mechanics
+		public async Task<bool> WaitForPlayerReaction(string expectedWord, float timeLimit)
+		{
+			// 1. Reset State
+			_reactionTaskSource = new TaskCompletionSource<bool>();
+			_isReactionPhase = true;
+			_expectedReactionWord = expectedWord.ToUpper();
+			_reactionStartTime = Time.GetTicksMsec() / 1000f;
+
+			// 2. Tampilkan UI
+			UpdateReactionUI(true, timeLimit);
+
+			// 3. AGGRESSIVE FOCUS
+			if (CommandInput != null)
 			{
-				string hexColor = color.ToHtml();
-				_combatLog.AppendText($"[color=#{hexColor}]{message}[/color]\n");
+				CommandInput.Editable = true;
+				CommandInput.Visible = true;
+				CommandInput.Text = ""; // Pastikan kosong
+
+				// Buang fokus lama (jika ada) untuk me-reset status input engine
+				CommandInput.ReleaseFocus();
+
+				// Tunggu 2 frame agar engine benar-benar bersih dari event klik/mouse
+				await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+				await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+				CommandInput.GrabFocus();
+
+				// Trik Tambahan: Paksa kursor ke kolom 0
+				CommandInput.CaretColumn = 0;
+			}
+
+			// 4. Timer & Racing Task
+			bool result = false;
+			var delayTask = Task.Delay((int)(timeLimit * 1000));
+			var inputTask = _reactionTaskSource.Task;
+
+			var completedTask = await Task.WhenAny(inputTask, delayTask);
+			result = (completedTask == inputTask) ? await inputTask : false;
+
+			// 5. Cleanup
+			_isReactionPhase = false;
+			UpdateReactionUI(false);
+			EnableInput(false);
+			ResetInputUI();
+
+			return result;
+		}
+
+		private void UpdateReactionUI(bool show, float time = 0)
+		{
+			if (ReactionPanel != null) ReactionPanel.Visible = show;
+			if (show)
+			{
+				ReactionPromptLabel.Text = $"TYPE: {_expectedReactionWord}!";
+				if (ReactionTimerBar != null)
+				{
+					ReactionTimerBar.MaxValue = time;
+					ReactionTimerBar.Value = time;
+					_timerTween?.Kill();
+					_timerTween = CreateTween();
+					_timerTween.TweenProperty(ReactionTimerBar, "value", 0, time);
+				}
+			}
+		}
+
+		private void FailReaction()
+		{
+			_reactionTaskSource?.TrySetResult(false);
+			if (CommandFeedback != null)
+				CommandFeedback.Text = $"[center][color={COLOR_WRONG}]FAILED![/color][/center]";
+		}
+		#endregion
+
+		#region Public API & Stats
+		public void EnterPlayerCommandPhase(IEnumerable<string> commands)
+		{
+			_isReactionPhase = false;
+			_availableCommands = new HashSet<string>(commands.Select(c => c.ToUpper()));
+
+
+			_availableCommands.Add("END");
+
+			EnableInput(true);
+		}
+		public void SetEndTurnButtonInteractable(bool interactable)
+		{
+			_canEndTurn = interactable;
+
+			// Jika sedang tidak boleh end turn, hapus "END" dari daftar bantuan visual
+			if (!interactable) _availableCommands.Remove("END");
+			else _availableCommands.Add("END");
+		}
+		public void EnableInput(bool enable)
+		{
+			if (CommandInput == null) return;
+
+			CommandInput.Editable = enable;
+
+			if (enable)
+			{
+				CommandInput.FocusMode = FocusModeEnum.All;
+				CommandInput.Clear();
+
+				// Solusi CS0117: Merujuk langsung ke Control.MethodName
+				CommandInput.CallDeferred(Control.MethodName.GrabFocus);
 			}
 			else
 			{
-				// Fallback jika UI Log belum siap
-				GD.Print($"[LOG] {message}");
+				CommandInput.ReleaseFocus();
 			}
 		}
 
-		private void GrabFocusDeferred()
-		{
-			if (_commandInput != null) _commandInput.GrabFocus();
-		}
-
-		public void SetEndTurnButtonInteractable(bool interactable)
-		{
-			if (_endTurnBtn != null) _endTurnBtn.Disabled = !interactable;
-		}
-		public void UpdateTurnLabel(string text) { } // Implementasi label jika ada
 		public void UpdateAP(int current, int max)
 		{
-			// 1. Update Text Label (Cara Lama)
-			if (_apLabel != null) _apLabel.Text = $"AP: {current}/{max}";
-
-			// 2. [BARU] Update Progress Bar dengan Animasi
-			if (PlayerAPBar != null)
-			{
-				PlayerAPBar.MaxValue = max;
-
-				// Buat Tween agar bar turun/naik perlahan
-				var tween = CreateTween();
-				tween.TweenProperty(PlayerAPBar, "value", current, 0.3f)
-					.SetTrans(Tween.TransitionType.Sine)
-					.SetEase(Tween.EaseType.Out);
-			}
+			if (PlayerAPBar == null) return;
+			PlayerAPBar.MaxValue = max;
+			PlayerAPBar.Value = current;
 		}
 
 		public void UpdateHP(int current, int max)
 		{
-			// Update Text (Opsional)
+			if (PlayerHPBar == null) return;
+			PlayerHPBar.MaxValue = max;
+			PlayerHPBar.Value = current;
 			if (HPLabel != null) HPLabel.Text = $"{current}/{max}";
-
-			// Update Progress Bar dengan Animasi
-			if (PlayerHPBar != null)
-			{
-				PlayerHPBar.MaxValue = max;
-
-				var tween = CreateTween();
-				tween.TweenProperty(PlayerHPBar, "value", current, 0.3f)
-					.SetTrans(Tween.TransitionType.Quint) // Efek hentakan sedikit
-					.SetEase(Tween.EaseType.Out);
-
-				// Ubah warna bar jadi merah gelap jika HP kritis (< 20%)
-				if ((float)current / max < 0.2f)
-				{
-					PlayerHPBar.Modulate = Colors.Red;
-				}
-				else
-				{
-					PlayerHPBar.Modulate = Colors.White; // Reset warna normal
-				}
-			}
 		}
-
-		private void CompleteReaction(bool success)
+		public void EnablePlayerInput(bool enable = true)
 		{
-			if (_reactionTcs == null) return;
-
-			if (!_reactionTcs.Task.IsCompleted)
-			{
-				_reactionTcs.SetResult(success);
-			}
-
-			_isWaitingReaction = false;
+			EnableInput(enable);
 		}
-
-
-		private void ForceCancelReaction()
+		private void ConnectToScoreManager()
 		{
-			if (_reactionTcs != null && !_reactionTcs.Task.IsCompleted)
-			{
-				_reactionTcs.SetResult(false);
-			}
-
-			_isWaitingReaction = false;
-			_commandInput.Clear();
-			_commandInput.ReleaseFocus();
+			if (ScoreManager.Instance == null) return;
+			ScoreManager.Instance.ScoreUpdated += (s) => ScoreLabel.Text = $"SCORE: {s:N0}";
+			ScoreManager.Instance.ComboUpdated += (c) => ComboLabel.Text = $"COMBO: x{c}";
 		}
 
-
-
-		public async void EnablePlayerInput()
+		public void ExitPlayerCommandPhase()
 		{
-			if (_combatPanel != null)
-			{
-				_combatPanel.Visible = true;
+			_isReactionPhase = false;
+			_availableCommands.Clear();
 
-				if (_commandInput != null)
-				{
-					_commandInput.Editable = true;
-					_commandInput.Clear();
+			// Matikan input agar player tidak bisa mengetik saat animasi berjalan
+			EnableInput(false);
 
-					// 1. Tunggu 1 frame agar Godot selesai merender perubahan UI turn sebelumnya
-					await ToSignal(GetTree(), "process_frame");
+			// Bersihkan teks yang tersisa di layar
+			ResetInputUI();
 
-					// 2. NUCLEAR RESET: Lepaskan fokus dulu (biar tidak bingung)
-					_commandInput.ReleaseFocus();
-
-					// 3. Ambil Fokus
-					_commandInput.GrabFocus();
-
-					// 4. Pastikan kursor ada di posisi siap ketik
-					_commandInput.CaretColumn = 0;
-
-					// Debug: Pastikan fokus benar-benar diambil
-					GD.Print($"[HUD] Input Focus FORCED. Owner: {GetViewport().GuiGetFocusOwner()?.Name}");
-				}
-			}
+			// LogToTerminal("Command phase ended.", Colors.DimGray); // Opsional
 		}
+		#endregion
 	}
+	
 }

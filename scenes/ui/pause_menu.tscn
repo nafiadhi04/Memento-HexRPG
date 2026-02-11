@@ -1,0 +1,54 @@
+[gd_scene format=3 uid="uid://dxvef7x3tcy2a"]
+
+[ext_resource type="Script" uid="uid://yldl87ljhgtw" path="res://scripts/interfaces/PauseMenu.cs" id="1_6tw0m"]
+
+[node name="PauseMenu" type="CanvasLayer" unique_id=877414348 node_paths=PackedStringArray("ResumeBtn", "RestartBtn", "MainMenuBtn", "SaveQuitBtn")]
+process_mode = 3
+layer = 100
+script = ExtResource("1_6tw0m")
+ResumeBtn = NodePath("CenterContainer/MenuBox/Resumebtn")
+RestartBtn = NodePath("CenterContainer/MenuBox/Restartbtn")
+MainMenuBtn = NodePath("CenterContainer/MenuBox/MainMenubtn")
+SaveQuitBtn = NodePath("CenterContainer/MenuBox/SaveQuitbtn")
+
+[node name="CenterContainer" type="CenterContainer" parent="." unique_id=1206655419]
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="MenuBox" type="VBoxContainer" parent="CenterContainer" unique_id=726264068]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 20
+alignment = 1
+
+[node name="PauseLabel" type="Label" parent="CenterContainer/MenuBox" unique_id=934231622]
+layout_mode = 2
+text = "PAUSE"
+horizontal_alignment = 1
+
+[node name="Resumebtn" type="Button" parent="CenterContainer/MenuBox" unique_id=1589477111]
+layout_mode = 2
+action_mode = 0
+text = "RESUME"
+
+[node name="Restartbtn" type="Button" parent="CenterContainer/MenuBox" unique_id=664562165]
+layout_mode = 2
+text = "RESTART"
+
+[node name="MainMenubtn" type="Button" parent="CenterContainer/MenuBox" unique_id=243199414]
+layout_mode = 2
+text = "MAIN MENU"
+
+[node name="SaveQuitbtn" type="Button" parent="CenterContainer/MenuBox" unique_id=801927928]
+layout_mode = 2
+text = "SAVE & QUIT"
