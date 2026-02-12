@@ -1,4 +1,5 @@
 using Godot;
+using MementoTest.Core;
 using System;
 
 public partial class PauseMenu : CanvasLayer
@@ -54,15 +55,40 @@ public partial class PauseMenu : CanvasLayer
 
 	private void OnRestartPressed()
 	{
+		// Restart tidak perlu save, karena pemain ingin mengulang
 		GetTree().Paused = false;
 		GetTree().ReloadCurrentScene();
 	}
 
+	// --- UPDATED: MAIN MENU DENGAN AUTO SAVE ---
 	private void OnMainMenuPressed()
 	{
+		GD.Print("[PAUSE] Returning to Main Menu (Auto-Saving)...");
+
+		// 1. Simpan Game Dulu
+		if (GameManager.Instance != null)
+		{
+			GameManager.Instance.SaveGameplayState();
+		}
+
+		// 2. Unpause game (Penting agar scene berikutnya tidak diam)
 		GetTree().Paused = false;
+
+		// 3. Pindah Scene
 		GetTree().ChangeSceneToFile("res://scenes/ui/main_menu.tscn");
 	}
 
-	private void OnSaveQuitPressed() => GetTree().Quit();
+	private void OnSaveQuitPressed()
+	{
+		GD.Print("[PAUSE] Exiting Game (Auto-Saving)...");
+
+		// 1. Simpan Game
+		if (GameManager.Instance != null)
+		{
+			GameManager.Instance.SaveGameplayState();
+		}
+
+		// 2. Quit Aplikasi (Desktop)
+		GetTree().Quit();
+	}
 }

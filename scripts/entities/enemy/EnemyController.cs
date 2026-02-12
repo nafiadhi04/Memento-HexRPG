@@ -89,7 +89,7 @@ namespace MementoTest.Entities
 
 			_targetPlayer = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
 			_hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
-
+			LoadEnemyState();
 			AddToGroup("Enemy");
 		}
 		private PlayerController SelectTarget()
@@ -127,6 +127,38 @@ namespace MementoTest.Entities
 
 				_ => players.First()
 			};
+		}
+
+		private void LoadEnemyState()
+		{
+			// Cek apakah ada save data
+			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
+			{
+				// Apakah di save data musuh ini sudah mati?
+				if (GameManager.Instance.CurrentSaveData.IsEnemyDead)
+				{
+					QueueFree(); // Langsung hapus musuh jika sudah mati di save file
+					return;
+				}
+
+				// Jika masih hidup, load HP terakhirnya
+				// Pastikan logic New Game (EnemyHP = 0) tidak mereset musuh jadi mati
+				int savedHP = GameManager.Instance.CurrentSaveData.EnemyHP;
+
+				// Cek: Jika savedHP > 0, berarti ini Load Game. Jika 0, mungkin New Game (abaikan)
+				// Atau buat flag khusus "HasSavedData" di GameManager
+				if (savedHP > 0 && savedHP < MaxHP)
+				{
+					_currentHP = savedHP;
+					GD.Print($"[ENEMY] Loaded HP: {_currentHP}");
+				}
+			}
+
+			// Update UI HP Bar musuh di sini jika ada
+			if (_healthBar != null)
+			{
+				_healthBar.Value = _currentHP;
+			}
 		}
 		private PlayerController GetClosestPlayer()
 		{

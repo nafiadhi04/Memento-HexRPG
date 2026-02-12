@@ -41,6 +41,7 @@ namespace MementoTest.Core
 		private void StartPlayerTurn()
 		{
 			CurrentTurn = TurnState.Player;
+			
 
 			if (_battleHUD != null)
 			{

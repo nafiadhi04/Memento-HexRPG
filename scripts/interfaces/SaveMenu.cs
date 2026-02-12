@@ -7,10 +7,12 @@ namespace MementoTest.UI
     public partial class SaveMenu : Control
     {
         [Export] public PackedScene GameplayScene;
+        
 
-        // UI References - Slots
+        // UI References - Slots & Delete Buttons
         private Control _slotContainer;
         private SaveSlotUI _slot1, _slot2, _slot3;
+        private Button _deleteBtn1, _deleteBtn2, _deleteBtn3;
 
         // UI References - Creation Panel
         private Control _creationPanel;
@@ -21,77 +23,127 @@ namespace MementoTest.UI
         private Button _cancelButton;
         private Button _backButton;
 
+        // UI References - Popups
+        private ConfirmationDialog _deleteConfirmPopup;
+
         // Logic Variables
         private int _selectedSlotForCreation = -1;
+        private int _slotToDelete = -1;
 
         public override void _Ready()
         {
-            // [PERBAIKAN 1] Update Path SlotContainer (Ini sudah benar ada di dalam MainLayout)
+            // --- 1. SETUP UI REFERENCES ---
             _slotContainer = GetNode<Control>("MainLayout/SlotContainer");
-
-            // [PERBAIKAN 2] Update Path BackButton
-            // Di screenshot, BackButton adalah anak langsung dari SaveMenu (Root), bukan di dalam MainLayout
             _backButton = GetNode<Button>("BackButton");
 
-            // Ambil referensi slot
+            // [FIX 1] Sesuaikan nama node Popup persis dengan gambar (PopUp)
+            _deleteConfirmPopup = GetNode<ConfirmationDialog>("DeleteConfirmPopUp");
+
+            // Ambil referensi slot dulu
             _slot1 = _slotContainer.GetNode<SaveSlotUI>("SaveSlot1");
             _slot2 = _slotContainer.GetNode<SaveSlotUI>("SaveSlot2");
             _slot3 = _slotContainer.GetNode<SaveSlotUI>("SaveSlot3");
 
-            // [PERBAIKAN 3] Jalur Creation Panel (Sesuai Screenshot)
+            // [FIX 2] Ambil tombol Delete dari DALAM node SaveSlot masing-masing
+            // Dan sesuaikan penulisan hurufnya (Deletebtn1)
+            _deleteBtn1 = _slot1.GetNode<Button>("Deletebtn1");
+            _deleteBtn2 = _slot2.GetNode<Button>("Deletebtn2");
+            _deleteBtn3 = _slot3.GetNode<Button>("Deletebtn3");
+
+            // Setup Creation Panel (Ini sudah benar)
             _creationPanel = GetNode<Control>("CreationPanel");
-
-            // Ambil VBoxContainer di dalam CreationPanel
             var vBox = _creationPanel.GetNode<Control>("VBoxContainer");
-
             _nameInput = vBox.GetNode<LineEdit>("NameInput");
             _classOption = vBox.GetNode<OptionButton>("ClassOption");
             _classDescLabel = vBox.GetNode<Label>("ClassDescLabel");
 
-            // Tombol ada di dalam ButtonContainer
             var btnContainer = vBox.GetNode<Control>("ButtonContainer");
             _startButton = btnContainer.GetNode<Button>("StartGameButton");
             _cancelButton = btnContainer.GetNode<Button>("CancelButton");
 
-            // --- SETUP SIGNAL (Sama seperti sebelumnya) ---
+            // --- 2. SETUP SIGNALS ---
             _slot1.SlotSelected += OnSlotSelected;
             _slot2.SlotSelected += OnSlotSelected;
             _slot3.SlotSelected += OnSlotSelected;
+
+            _deleteBtn1.Pressed += () => OnDeleteButtonPressed(1);
+            _deleteBtn2.Pressed += () => OnDeleteButtonPressed(2);
+            _deleteBtn3.Pressed += () => OnDeleteButtonPressed(3);
+
+            _deleteConfirmPopup.Confirmed += OnConfirmDelete;
 
             _classOption.ItemSelected += OnClassChanged;
             _startButton.Pressed += OnStartGamePressed;
             _cancelButton.Pressed += () => _creationPanel.Visible = false;
             _backButton.Pressed += () => SceneTransition.Instance.ChangeScene("res://scenes/ui/main_menu.tscn");
-            // Isi Dropdown Class
-            PopulateClassOptions();
 
-            // Sembunyikan panel di awal
+            // --- 3. INITIALIZATION ---
+            PopulateClassOptions();
             _creationPanel.Visible = false;
+
+            RefreshDeleteButtons();
         }
+
+        // Fungsi baru untuk mengatur visibilitas tombol delete
+        private void RefreshDeleteButtons()
+        {
+            _deleteBtn1.Visible = GameManager.Instance.SaveExists(1);
+            _deleteBtn2.Visible = GameManager.Instance.SaveExists(2);
+            _deleteBtn3.Visible = GameManager.Instance.SaveExists(3);
+
+            // Opsional: Refresh juga teks slot agar sinkron
+            _slot1.RefreshUI();
+            _slot2.RefreshUI();
+            _slot3.RefreshUI();
+        }
+
         private void PopulateClassOptions()
         {
             _classOption.Clear();
             _classOption.AddItem("Warrior (Melee)");
             _classOption.AddItem("Archer (Ranged)");
             _classOption.AddItem("Mage (Magic)");
-
-            // Trigger update deskripsi pertama kali
             OnClassChanged(0);
         }
+
+        // --- DELETE LOGIC ---
+
+        private void OnDeleteButtonPressed(int slotIndex)
+        {
+            _slotToDelete = slotIndex;
+            _deleteConfirmPopup.DialogText = $"Are you sure you want to delete Save Slot {slotIndex}?\nThis action cannot be undone.";
+            _deleteConfirmPopup.PopupCentered();
+        }
+
+        private void OnConfirmDelete()
+        {
+            if (_slotToDelete != -1)
+            {
+                // Panggil GameManager untuk hapus file
+                GameManager.Instance.DeleteSave(_slotToDelete);
+
+                // Refresh UI agar tombol delete hilang & slot jadi "Empty"
+                RefreshDeleteButtons();
+
+                _slotToDelete = -1;
+            }
+        }
+
+        // --- SAVE/LOAD LOGIC ---
 
         private void OnSlotSelected(int slotIndex, bool isEmpty)
         {
             if (isEmpty)
             {
-                // BUKA PANEL CREATION
+                // NEW GAME: Buka Panel Creation
                 _selectedSlotForCreation = slotIndex;
                 _nameInput.Text = "";
                 _creationPanel.Visible = true;
-                _nameInput.GrabFocus(); // Langsung fokus ke ketik nama
+                _nameInput.GrabFocus();
             }
             else
             {
-                // LANGSUNG LOAD GAME
+                // LOAD GAME
                 GD.Print($"Loading Slot {slotIndex}...");
                 GameManager.Instance.LoadGame(slotIndex);
                 SceneTransition.Instance.ChangeScene(GameplayScene);
@@ -100,7 +152,6 @@ namespace MementoTest.UI
 
         private void OnClassChanged(long index)
         {
-            // Update Deskripsi sesuai request user
             switch (index)
             {
                 case 0: // Warrior
@@ -120,19 +171,17 @@ namespace MementoTest.UI
             string name = _nameInput.Text.Trim();
             if (string.IsNullOrEmpty(name))
             {
-                // Animasi goyang atau warning jika nama kosong
                 _nameInput.Modulate = Colors.Red;
                 CreateTween().TweenProperty(_nameInput, "modulate", Colors.White, 0.5f);
                 return;
             }
 
-            // Ambil Class dari Dropdown (Urutan Enum harus sama dengan urutan AddItem)
             PlayerClassType selectedClass = (PlayerClassType)_classOption.Selected;
 
-            // SIMPAN DATA BARU
+            // Create Save & Refresh UI Buttons (tombol delete akan muncul untuk slot ini)
             GameManager.Instance.CreateNewSave(_selectedSlotForCreation, name, selectedClass);
 
-            // MASUK GAMEPLAY
+            // Langsung masuk game
             SceneTransition.Instance.ChangeScene(GameplayScene);
         }
     }

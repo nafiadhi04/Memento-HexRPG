@@ -1,18 +1,28 @@
 using Godot;
 using System;
+using MementoTest.Core;
 
 namespace MementoTest.Core
 {
-	// Inherit Resource agar mudah disimpan oleh Godot
+	[GlobalClass]
 	public partial class SaveData : Resource
 	{
 		[Export] public string PlayerName { get; set; } = "Player";
 		[Export] public PlayerClassType ClassType { get; set; } = PlayerClassType.Warrior;
-
-		// Kita simpan tanggal update agar tahu mana save terbaru
 		[Export] public string LastPlayedDate { get; set; } = "";
 
-		// Bisa tambah stats lain nanti (Level, XP, CurrentStage)
-		[Export] public int Level { get; set; } = 1;
+		// --- STATS PLAYER ---
+		[Export] public int CurrentHP { get; set; }
+		[Export] public int CurrentAP { get; set; }
+
+		// --- TAMBAHAN BARU: POSISI ---
+		[Export] public Vector2 PlayerPosition { get; set; }
+
+		// --- TAMBAHAN BARU: ENEMY (Sederhana 1v1) ---
+		// Jika musuh banyak, kita butuh Array/Dictionary. Untuk sekarang 1 musuh dulu.
+		[Export] public int EnemyHP { get; set; }
+		[Export] public bool IsEnemyDead { get; set; }
+
+		public SaveData() { }
 	}
 }

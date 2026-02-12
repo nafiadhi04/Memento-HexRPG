@@ -50,15 +50,54 @@ theme_override_constants/separation = 8
 custom_minimum_size = Vector2(200, 300)
 layout_mode = 2
 
+[node name="Deletebtn1" type="Button" parent="MainLayout/SlotContainer/SaveSlot1" unique_id=1853231001]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -8.0
+offset_top = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Delete"
+
 [node name="SaveSlot2" parent="MainLayout/SlotContainer" unique_id=1213208935 instance=ExtResource("1_uo4td")]
 custom_minimum_size = Vector2(200, 300)
 layout_mode = 2
 SlotIndex = 2
 
+[node name="Deletebtn2" type="Button" parent="MainLayout/SlotContainer/SaveSlot2" unique_id=1657072061]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -59.0
+offset_top = -31.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Delete"
+
 [node name="SaveSlot3" parent="MainLayout/SlotContainer" unique_id=1956381161 instance=ExtResource("1_uo4td")]
 custom_minimum_size = Vector2(200, 300)
 layout_mode = 2
 SlotIndex = 3
+
+[node name="Deletebtn3" type="Button" parent="MainLayout/SlotContainer/SaveSlot3" unique_id=972694720]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -8.0
+offset_top = -8.0
+grow_horizontal = 0
+grow_vertical = 0
+text = "Delete"
 
 [node name="BackButton" type="Button" parent="." unique_id=1075196062]
 layout_mode = 0
@@ -112,3 +151,11 @@ text = "CANCEL"
 [node name="StartGameButton" type="Button" parent="CreationPanel/VBoxContainer/ButtonContainer" unique_id=471937978]
 layout_mode = 2
 text = "START ADVENTURE"
+
+[node name="DeleteConfirmPopUp" type="ConfirmationDialog" parent="." unique_id=19596301]
+oversampling_override = 1.0
+title = "Delete Save?"
+initial_position = 1
+size = Vector2i(566, 100)
+ok_button_text = "Yes"
+dialog_text = "Are you sure you want to delete this save data? This cannot be undone."

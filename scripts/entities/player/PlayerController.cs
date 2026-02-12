@@ -27,6 +27,7 @@ namespace MementoTest.Entities
 		[Export] private PackedScene MagicProjectileScene;
 		[Export]
 		private PackedScene _projectileScene;
+		private bool _justLoaded = false;
 
 
 
@@ -36,6 +37,7 @@ namespace MementoTest.Entities
 		public int CurrentHP => _currentHP;
 
 		private int _currentAP;
+		public int CurrentAP => _currentAP;
 		private bool _isMoving = false;
 		private bool _isAttacking = false;
 		private Vector2I _currentGridPos;
@@ -71,7 +73,7 @@ namespace MementoTest.Entities
 		[Export] public bool UseDebugClass = false;
 
 		// Tambahkan variabel range serangan
-		private int _attackRange = 1;
+		private int _attackRange;
 
 
 
@@ -159,55 +161,84 @@ namespace MementoTest.Entities
 		}
 
 
-		// Panggil ini di _Ready() paling bawah
 		private void InitializeStatsFromSave()
 		{
-			PlayerClassType classToLoad = PlayerClassType.Warrior; // Default fallback
+			// 1. Tentukan Class
+			PlayerClassType classToLoad = PlayerClassType.Warrior;
 
-			// 1. Cek apakah ada Save Data dari Game Manager
 			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
 			{
 				classToLoad = GameManager.Instance.CurrentSaveData.ClassType;
-				GD.Print($"[PLAYER] Loading Save Data: {classToLoad}");
+				GD.Print($"[PLAYER] Loading Save Data Found: {classToLoad}");
 			}
-			// 2. Jika tidak ada (Main langsung dari Scene), cek Debug Mode
 			else if (UseDebugClass)
 			{
 				classToLoad = DebugClass;
-				GD.Print($"[PLAYER] Debug Mode: Forcing Class {classToLoad}");
+			}
+
+			// 2. BERSIHKAN DATA & LOAD SKILL DULUAN (PENTING!)
+			SkillList.Clear();
+			_skillDatabase.Clear();
+
+			// [FIX] Panggil ini DULUAN sebelum set stats
+			LoadSkillsForClass(classToLoad);
+
+			// 3. BARU AMBIL STATS DARI CONFIG (Agar menimpa default value)
+			if (ConfigManager.Instance != null)
+			{
+				MaxHP = ConfigManager.Instance.GetClassHP(classToLoad);
+				MaxAP = ConfigManager.Instance.GetClassAP(classToLoad);
+
+				// [FIX] Range diambil TERAKHIR. Ini menjamin nilai 6 dari JSON dipakai.
+				_attackRange = ConfigManager.Instance.GetClassRange(classToLoad);
+
+				GD.Print($"[PLAYER] Class: {classToLoad} | Range Final: {_attackRange}");
 			}
 			else
 			{
-				GD.Print("[PLAYER] No Save & No Debug. Defaulting to Warrior.");
+				GD.PrintErr("[PLAYER] ConfigManager missing!");
+				MaxHP = 100; MaxAP = 5; _attackRange = 1;
 			}
 
-			// 3. Set Stats & Range
-			SkillList.Clear(); // Hapus skill bawaan inspector
-			_skillDatabase.Clear();
-
-			switch (classToLoad)
+			// 4. Override Skill Stats dari Config
+			if (ConfigManager.Instance != null)
 			{
-				case PlayerClassType.Warrior:
-					MaxHP = 150; MaxAP = 8; _attackRange = 1; // Melee
-					LoadSkillsForClass(PlayerClassType.Warrior);
-					break;
-				case PlayerClassType.Archer:
-					MaxHP = 80; MaxAP = 10; _attackRange = 6; // Jauh
-					LoadSkillsForClass(PlayerClassType.Archer);
-					break;
-				case PlayerClassType.Mage:
-					MaxHP = 70; MaxAP = 15; _attackRange = 4; // Sedang
-					LoadSkillsForClass(PlayerClassType.Mage);
-					break;
+				foreach (var skill in SkillList)
+				{
+					if (skill == null) continue;
+					string cmd = skill.CommandName.ToUpper();
+					skill.Damage = ConfigManager.Instance.GetSkillDamage(cmd);
+					skill.ApCost = ConfigManager.Instance.GetSkillAPCost(cmd);
+					_skillDatabase[skill.CommandName.ToLower()] = skill;
+				}
 			}
 
-			// Refresh UI
-			_currentHP = MaxHP;
-			_currentAP = MaxAP;
-			_hud?.UpdateHP(_currentHP, MaxHP);
-			_hud?.UpdateAP(_currentAP, MaxAP);
-		}
+			// 5. Load Progress Terkini (HP Sisa, dll)
+			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
+			{
+				_currentHP = GameManager.Instance.CurrentSaveData.CurrentHP;
+				_currentAP = GameManager.Instance.CurrentSaveData.CurrentAP;
+				if (_currentHP > MaxHP) _currentHP = MaxHP;
 
+				_justLoaded = true;
+
+				Vector2 savedPos = GameManager.Instance.CurrentSaveData.PlayerPosition;
+				if (savedPos != Vector2.Zero) GlobalPosition = savedPos;
+			}
+			else
+			{
+				_currentHP = MaxHP;
+				_currentAP = MaxAP;
+				_justLoaded = false;
+			}
+
+			// 6. Update UI
+			if (_hud != null)
+			{
+				_hud.UpdateHP(_currentHP, MaxHP);
+				_hud.UpdateAP(_currentAP, MaxAP);
+			}
+		}
 		private void LoadSkillsForClass(PlayerClassType type)
 		{
 			if (!_classSkillPaths.ContainsKey(type)) return;
@@ -913,10 +944,27 @@ namespace MementoTest.Entities
 
 		private void OnPlayerTurnStart()
 		{
-			_currentAP = Math.Min(_currentAP + TurnStartBaseRegen, MaxAP);
-			_hud?.UpdateAP(_currentAP, MaxAP);
-			_hud?.LogToTerminal($"--- AP RECHARGED (+{TurnStartBaseRegen}) ---", Colors.Cyan);
+			// [MODIFIKASI] Cek apakah ini Turn pertama setelah Load Game?
+			if (_justLoaded)
+			{
+				// JIKA BARU LOAD: Jangan tambah AP, pakai nilai dari Save File
+				GD.Print("[PLAYER] Game Loaded. Skipping AP Regen.");
+				_hud?.LogToTerminal("--- GAME LOADED (AP RESTORED) ---", Colors.Yellow);
 
+				// Matikan flag agar turn berikutnya regen berjalan normal
+				_justLoaded = false;
+			}
+			else
+			{
+				// JIKA TURN BIASA: Lakukan Regenerasi AP (+2)
+				_currentAP = Math.Min(_currentAP + TurnStartBaseRegen, MaxAP);
+				_hud?.LogToTerminal($"--- AP RECHARGED (+{TurnStartBaseRegen}) ---", Colors.Cyan);
+			}
+
+			// Update UI (Penting agar Bar AP sinkron visualnya)
+			_hud?.UpdateAP(_currentAP, MaxAP);
+
+			// --- SISA KODE SAMA ---
 			_mapManager?.ClearMovementOptions();
 
 			// Re-open combat panel kalau masih ada target
