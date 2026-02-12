@@ -15,9 +15,22 @@ namespace MementoTest.Core
 
 		private const string SAVE_DIR = "user://saves/";
 
+		// Referensi ke Scene Main Menu (Sesuaikan path-nya!)
+		private string _mainMenuPath = "res://scenes/ui/main_menu.tscn";
+		// Referensi ke UI Win Screen (Nanti kita buat)
+		private PackedScene _winScreenScene = ResourceLoader.Load<PackedScene>("res://scenes/ui/win_screen.tscn");
+		public int ActiveSlotIndex { get; set; } = 1;
+		[Export] public PackedScene WinScreenPrefab;
+
+		private bool _isVictoryTriggered = false;
+		private bool _gameStarted = false;
+
+
+
 		public override void _Ready()
 		{
 			Instance = this;
+			
 			EnsureSaveDirectory();
 		}
 
@@ -28,6 +41,12 @@ namespace MementoTest.Core
 				DirAccess.MakeDirAbsolute(SAVE_DIR);
 			}
 		}
+		public void MarkGameStarted()
+		{
+			_gameStarted = true;
+			_isVictoryTriggered = false; // reset safety
+		}
+
 
 		// --- FUNGSI UTAMA SAVE/LOAD ---
 
@@ -44,15 +63,19 @@ namespace MementoTest.Core
 		// Dipanggil saat New Game -> Create Character
 		public void CreateNewSave(int slotIndex, string name, PlayerClassType classType)
 		{
+			CurrentSaveData.IsVictory = false;
+
+			ActiveSlotIndex = slotIndex;
 			CurrentSlotIndex = slotIndex;
-			CurrentSaveData = new SaveData();
+            CurrentSaveData = new SaveData
+            {
+                PlayerName = name,
+                ClassType = classType,
+                LastPlayedDate = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+            };
 
-			CurrentSaveData.PlayerName = name;
-			CurrentSaveData.ClassType = classType;
-			CurrentSaveData.LastPlayedDate = DateTime.Now.ToString("dd/MM/yyyy HH:mm");
-
-			// --- TAMBAHAN: Set HP/AP Awal berdasarkan Config ---
-			if (ConfigManager.Instance != null)
+            // --- TAMBAHAN: Set HP/AP Awal berdasarkan Config ---
+            if (ConfigManager.Instance != null)
 			{
 				CurrentSaveData.CurrentHP = ConfigManager.Instance.GetClassHP(classType);
 				CurrentSaveData.CurrentAP = ConfigManager.Instance.GetClassAP(classType);
@@ -70,6 +93,8 @@ namespace MementoTest.Core
 		// Dipanggil saat Continue -> Pilih Slot
 		public void LoadGame(int slotIndex)
 		{
+			ActiveSlotIndex = slotIndex;
+			GetTree().Paused = false;
 			if (SaveExists(slotIndex))
 			{
 				CurrentSlotIndex = slotIndex;
@@ -157,6 +182,91 @@ namespace MementoTest.Core
 				}
 			}
 		}
+		public async void CheckWinCondition()
+		{
+			if (!_gameStarted) return; // 🔥 penting!
+			if (_isVictoryTriggered) return;
+
+			await ToSignal(GetTree(), SceneTree.SignalName.ProcessFrame);
+
+			var enemies = GetTree().GetNodesInGroup("Enemy");
+
+			if (enemies.Count == 0)
+			{
+				_isVictoryTriggered = true;
+				HandleVictory();
+			}
+		}
+
+
+
+
+
+		private async void HandleVictory()
+		{
+			if (!_isVictoryTriggered)
+				return;
+
+			GD.Print("=== VICTORY HANDLER START ===");
+
+			// 🔒 Freeze game
+			GetTree().Paused = true;
+
+			// =========================
+			// 1. Update Score
+			// =========================
+			if (ScoreManager.Instance != null && CurrentSaveData != null)
+			{
+				int finalScore = ScoreManager.Instance.CurrentScore;
+
+				if (finalScore > CurrentSaveData.HighScore)
+				{
+					CurrentSaveData.HighScore = finalScore;
+				}
+
+				CurrentSaveData.IsVictory = true;   // 🔥 PINDAH KE SINI
+				CurrentSaveData.IsEnemyDead = false;
+				CurrentSaveData.EnemyHP = 0;
+			}
+			// =========================
+			// 2. Save Data
+			// =========================
+			SaveGame();
+
+			// =========================
+			// 3. Show WinScreen (Toggle Visible)
+			// =========================
+			var winScreen = GetTree().GetFirstNodeInGroup("WinScreen")
+				as MementoTest.UI.WinScreen;
+
+			if (winScreen != null)
+			{
+				winScreen.ShowVictory();
+			}
+			else
+			{
+				GD.PrintErr("WinScreen node tidak ditemukan di scene!");
+				return;
+			}
+
+			// =========================
+			// 4. Optional Auto Return
+			// =========================
+			await ToSignal(GetTree().CreateTimer(5.0f, true), "timeout");
+
+			GetTree().Paused = false;
+
+			if (SceneTransition.Instance != null)
+			{
+				SceneTransition.Instance.ChangeScene(_mainMenuPath);
+			}
+			else
+			{
+				GetTree().ChangeSceneToFile(_mainMenuPath);
+			}
+		}
+
+
 
 		// Simpan data terkini ke disk
 		public void SaveGame()
@@ -174,6 +284,24 @@ namespace MementoTest.Core
 			else
 			{
 				GD.PrintErr($"[MANAGER] Gagal menyimpan game: {err}");
+			}
+		}
+
+		// Di dalam GameManager.cs
+
+		public void AddKillCount()
+		{
+			if (CurrentSaveData != null)
+			{
+				CurrentSaveData.TotalKills++;
+				GD.Print($"[GAME MANAGER] Kill Added! Total: {CurrentSaveData.TotalKills}");
+
+				// Opsional: Langsung save progress kill agar aman jika game crash
+				// SaveGame(); 
+			}
+			else
+			{
+				GD.PrintErr("[GAME MANAGER] Cannot add kill count: No active SaveData!");
 			}
 		}
 	}

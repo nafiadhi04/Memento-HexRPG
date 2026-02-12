@@ -69,7 +69,7 @@ namespace MementoTest.Core
 		public override void _Ready()
 		{
 			Instance = this;
-
+			GameManager.Instance.MarkGameStarted();
 			// Buat cursor mouse (Default scale 1.0f)
 			_mouseCursor = CreateHexLineStyle(CursorValidColor, 1.0f);
 			_mouseCursor.Visible = false;

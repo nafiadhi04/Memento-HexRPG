@@ -490,6 +490,11 @@ namespace MementoTest.Entities
 		}
 
 
+		private void TriggerCameraShake(float strength, float duration)
+		{
+			var camera = GetTree().GetFirstNodeInGroup("GameCamera") as MementoTest.Core.GameCamera;
+			camera?.Shake(strength, duration);
+		}
 
 		private async Task PerformSkill(EnemySkill skill)
 		{
@@ -517,6 +522,8 @@ namespace MementoTest.Entities
 			// 🔥 SATU-SATUNYA DAMAGE CALL
 			int finalDamage = success ? 0 : skill.Damage;
 			_targetPlayer.TakeDamage(finalDamage);
+			TriggerCameraShake(4f, 0.1f);
+
 
 			var back = CreateTween();
 			back.TweenProperty(this, "global_position", startPos, 0.2f);
@@ -762,7 +769,20 @@ namespace MementoTest.Entities
 			t.TweenProperty(this, "modulate:a", 0f, 0.4f);
 			t.TweenProperty(this, "scale", Vector2.Zero, 0.4f);
 			await ToSignal(t, "finished");
+
+			var player = GetTree().GetFirstNodeInGroup("Player") as MementoTest.Entities.PlayerController;
+			if (player != null)
+			{
+				player.RegisterKill();
+			}
 			QueueFree();
+			if (MementoTest.Core.GameManager.Instance != null)
+			{
+				// Panggil CheckWinCondition SETELAH QueueFree
+				MementoTest.Core.GameManager.Instance.CallDeferred("CheckWinCondition");
+			}
+
+
 		}
 	}
 }

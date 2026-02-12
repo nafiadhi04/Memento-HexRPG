@@ -29,3 +29,6 @@ text = "-"
 [node name="DateLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=748817281]
 layout_mode = 2
 text = "--/--/----"
+
+[node name="HighScoreLabel" type="Label" parent="MarginContainer/VBoxContainer" unique_id=1636768491]
+layout_mode = 2

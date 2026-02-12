@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using MementoTest.Core;
+using System.Linq;
 
 namespace MementoTest.UI
 {
@@ -143,12 +144,90 @@ namespace MementoTest.UI
             }
             else
             {
-                // LOAD GAME
-                GD.Print($"Loading Slot {slotIndex}...");
-                GameManager.Instance.LoadGame(slotIndex);
-                SceneTransition.Instance.ChangeScene(GameplayScene);
+                string savePath = GameManager.Instance.GetSavePath(slotIndex);
+                var data = ResourceLoader.Load<SaveData>(savePath);
+
+                if (data.IsVictory)
+                {
+                    GD.Print($"Slot {slotIndex} Tamat. Memulai New Game+ Berdasarkan Config...");
+
+                    // 1. Ambil Nama Kelas (Warrior/Archer/Mage) dari data save
+                    string className = data.ClassType.ToString();
+
+                    // 2. Load Config JSON
+                    var configData = LoadGameConfig();
+
+                    // [FIX] Menggunakan ContainsKey untuk Godot.Collections.Dictionary
+                    if (configData != null && configData.ContainsKey("classes"))
+                    {
+                        var classes = configData["classes"].AsGodotDictionary();
+
+                        if (classes.ContainsKey(className))
+                        {
+                            var classStats = classes[className].AsGodotDictionary();
+
+                            // --- RESET SESUAI CONFIG ---
+                            // Mengambil nilai max dari JSON untuk HP dan AP
+                            data.CurrentHP = (int)classStats["max_hp"];
+                            data.CurrentAP = (int)classStats["max_ap"];
+                        }
+                    }
+
+                    // 3. Reset Status Sesi Lainnya (Data Progress)
+                    data.IsVictory = false;           // Agar bisa menamatkan game lagi
+                    data.PlayerPosition = Vector2.Zero; // Kembali ke titik awal
+                    data.IsEnemyDead = false;         // Reset status musuh di level
+                    data.CurrentScore = 0;            // Reset skor sesi (Highscore tetap aman)
+
+                    // Note: data.UnlockedSkills dan data.HighScore TIDAK di-reset di sini
+                    // agar progress permanen terbawa ke sesi baru.
+
+                    // 4. Simpan Perubahan & Pindah Scene
+                    ResourceSaver.Save(data, savePath);
+                    GameManager.Instance.LoadGame(slotIndex);
+                    SceneTransition.Instance.ChangeScene(GameplayScene);
+                }
+                else
+                {
+                    // LOAD GAME BIASA (CONTINUE)
+                    GD.Print($"Loading Slot {slotIndex} (Continue)...");
+                    GameManager.Instance.LoadGame(slotIndex);
+                    SceneTransition.Instance.ChangeScene(GameplayScene);
+                }
             }
         }
+
+        /// <summary>
+        /// Fungsi pembantu untuk memuat file game_config.json
+        /// </summary>
+        private Godot.Collections.Dictionary LoadGameConfig()
+        {
+            string path = "res://config/game_config.json"; // Pastikan path file benar
+
+            if (!FileAccess.FileExists(path))
+            {
+                GD.PrintErr($"File config tidak ditemukan di: {path}");
+                return null;
+            }
+
+            using var file = FileAccess.Open(path, FileAccess.ModeFlags.Read);
+            string jsonString = file.GetAsText();
+
+            var json = new Json();
+            var error = json.Parse(jsonString);
+
+            if (error == Error.Ok)
+            {
+                return json.Data.AsGodotDictionary();
+            }
+            else
+            {
+                GD.PrintErr($"Gagal parse JSON: {json.GetErrorMessage()} pada baris {json.GetErrorLine()}");
+                return null;
+            }
+        }
+
+        // Fungsi Helper untuk baca JSON
 
         private void OnClassChanged(long index)
         {
@@ -178,10 +257,9 @@ namespace MementoTest.UI
 
             PlayerClassType selectedClass = (PlayerClassType)_classOption.Selected;
 
-            // Create Save & Refresh UI Buttons (tombol delete akan muncul untuk slot ini)
+            // Pastikan GameManager create save menerima parameter yang sesuai
             GameManager.Instance.CreateNewSave(_selectedSlotForCreation, name, selectedClass);
 
-            // Langsung masuk game
             SceneTransition.Instance.ChangeScene(GameplayScene);
         }
     }

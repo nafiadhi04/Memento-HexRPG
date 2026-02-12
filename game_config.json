@@ -1,36 +1,45 @@
 {
-    "classes": {
-        "Warrior": {
-            "max_hp": 150,
-            "max_ap": 8,
-            "attack_range": 1,
-            "skills": [
-                "SLASH",
-                "BLOCK",
-                "BASH"
-            ]
-        },
-        "Archer": {
-            "max_hp": 80,
-            "max_ap": 10,
-            "attack_range": 6,
-            "skills": [
-                "SHOOT",
-                "AIM",
-                "DODGE"
-            ]
-        },
-        "Mage": {
-            "max_hp": 70,
-            "max_ap": 15,
-            "attack_range": 4,
-            "skills": [
-                "FIREBALL",
-                "HEAL",
-                "TELEPORT"
-            ]
+   "classes": {
+    "Warrior": {
+        "max_hp": 150,
+        "max_ap": 8,
+        "attack_range": 1,
+        "skills": [
+            "SLASH"
+        ],
+        "unlock_progression": {
+            "5": "PUNCTURE",
+            "15": "SWORDS DANCE",
+            "30": "MYSTIC ARROW STORM"
         }
     },
+    "Archer": {
+        "max_hp": 80,
+        "max_ap": 10,
+        "attack_range": 6,
+        "skills": [
+            "SHOOT"
+        ],
+        "unlock_progression": {
+            "5": "SNIPE UP", 
+            "15": "THIRD ARROW" 
+        }
+    },
+
+    "Mage": {
+        "max_hp": 70,
+        "max_ap": 15,
+        "attack_range": 4,
+        "skills": [
+            "BURNS"
+        ],
+        "unlock_progression": {
+            "5": "FIREBALLS", 
+            "15": "PSYCHO BLAST" 
+        }
+        
+    }
+},
     "skills": {
         "SLASH": {
             "damage": 25,

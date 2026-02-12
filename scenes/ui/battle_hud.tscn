@@ -38,7 +38,7 @@ corner_radius_bottom_left = 5
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dy3po"]
 bg_color = Color(1.0102807, 1.0102807, 0, 1)
 
-[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("CommandInput", "CommandFeedback", "TurnLabel", "CombatLogLabel", "LogScroll", "PlayerHPBar", "PlayerAPBar", "HPLabel", "ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar") groups=["HUD"]]
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("CommandInput", "CommandFeedback", "TurnLabel", "CombatLogLabel", "LogScroll", "PlayerHPBar", "PlayerAPBar", "ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar") groups=["HUD"]]
 script = ExtResource("1_dy3po")
 CommandInput = NodePath("MainControl/CommandInput")
 CommandFeedback = NodePath("MainControl/CenterUI/CommandFeedback")
@@ -47,7 +47,6 @@ CombatLogLabel = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScro
 LogScroll = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScroll")
 PlayerHPBar = NodePath("MainControl/StatsUI/VBoxContainer/HPContainer/HPBar")
 PlayerAPBar = NodePath("MainControl/StatsUI/VBoxContainer/APContainer/APBar")
-HPLabel = NodePath("MainControl/StatsUI/VBoxContainer/HPContainer/HPLabel")
 ScoreLabel = NodePath("MainControl/StatsUI/VBoxContainer/ScoreLabel")
 ComboLabel = NodePath("MainControl/StatsUI/VBoxContainer/ComboLabel")
 ReactionPanel = NodePath("MainControl/ReactionPanel")

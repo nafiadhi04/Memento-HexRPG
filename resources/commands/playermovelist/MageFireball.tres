@@ -1,6 +1,6 @@
 [gd_resource type="Resource" script_class="PlayerSkill" format=3 uid="uid://bqdr0ibpc8xiq"]
 
-[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectile.tscn" id="1_n56nq"]
+[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectileArcher.tscn" id="1_n56nq"]
 [ext_resource type="Script" uid="uid://bj6h3te0qhxb4" path="res://scripts/core/battle/PlayerSkill.cs" id="1_roj7o"]
 
 [resource]

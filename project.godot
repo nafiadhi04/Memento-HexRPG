@@ -42,6 +42,8 @@ project/assembly_name="Memento-Tes Seleksi"
 Player=""
 Enemy=""
 HUD=""
+WinScreen=""
+GameCamera=""
 
 [layer_names]
 

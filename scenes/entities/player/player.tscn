@@ -1,11 +1,11 @@
 [gd_scene format=3 uid="uid://c0wgpf30k3hu4"]
 
 [ext_resource type="Script" uid="uid://dw6mhx26alx7a" path="res://scripts/entities/player/PlayerController.cs" id="1_635qg"]
-[ext_resource type="Resource" uid="uid://berh6rqwpwj4v" path="res://resources/commands/playermovelist/WarriorSlash.tres" id="2_nh4ur"]
 [ext_resource type="Script" uid="uid://cebq4pp2cocr" path="res://scenes/entities/player/GameCamera.cs" id="3_58kc7"]
 [ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_bjvvg"]
-[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectile.tscn" id="4_8akj5"]
+[ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectileArcher.tscn" id="4_8akj5"]
 [ext_resource type="Texture2D" uid="uid://cevecqor0fl8t" path="res://assets/sprites/entities/player/Character-Base.png" id="4_bjvvg"]
+[ext_resource type="PackedScene" uid="uid://beqks8mtb365p" path="res://scenes/entities/projectileMage.tscn" id="5_bj7e2"]
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_bjvvg"]
 atlas = ExtResource("4_bjvvg")
@@ -358,6 +358,18 @@ region = Rect2(192, 96, 32, 32)
 [sub_resource type="AtlasTexture" id="AtlasTexture_vd7hb"]
 atlas = ExtResource("4_bjvvg")
 region = Rect2(224, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bachp"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(672, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_wcons"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(704, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_q8ddn"]
+atlas = ExtResource("4_bjvvg")
+region = Rect2(736, 0, 32, 32)
 
 [sub_resource type="AtlasTexture" id="AtlasTexture_aro4e"]
 atlas = ExtResource("4_bjvvg")
@@ -1083,6 +1095,20 @@ animations = [{
 }, {
 "frames": [{
 "duration": 1.0,
+"texture": SubResource("AtlasTexture_bachp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_wcons")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_q8ddn")
+}],
+"loop": false,
+"name": &"die",
+"speed": 3.0
+}, {
+"frames": [{
+"duration": 1.0,
 "texture": SubResource("AtlasTexture_aro4e")
 }, {
 "duration": 1.0,
@@ -1380,19 +1406,21 @@ input_pickable = true
 motion_mode = 1
 script = ExtResource("1_635qg")
 MaxAP = 100
-SkillList = Array[Object]([ExtResource("2_nh4ur")])
+SkillList = Array[Object]([])
 DamagePopupScene = ExtResource("3_bjvvg")
 Sprite = NodePath("AnimatedSprite2D")
 BowProjectileScene = ExtResource("4_8akj5")
-MagicProjectileScene = ExtResource("4_8akj5")
+MagicProjectileScene = ExtResource("5_bj7e2")
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=1702358998]
 position = Vector2(0, 60)
 scale = Vector2(10, 10)
 sprite_frames = SubResource("SpriteFrames_tswhv")
-animation = &"attack_bow_down"
+animation = &"die"
+frame = 2
+frame_progress = 1.0
 
-[node name="GameCamera" type="Camera2D" parent="." unique_id=592137219]
+[node name="GameCamera" type="Camera2D" parent="." unique_id=592137219 groups=["GameCamera"]]
 position_smoothing_enabled = true
 script = ExtResource("3_58kc7")
 MinZoom = 1.25

@@ -91,4 +91,33 @@ public partial class ConfigManager : Node
 		}
 		return def;
 	}
+	// Method untuk mengambil tabel unlock berdasarkan Class
+	public Dictionary<int, string> GetClassUnlocks(string className)
+	{
+		Dictionary<int, string> unlocks = new Dictionary<int, string>();
+
+		// 1. Validasi akses JSON path: classes -> className -> unlock_progression
+		if (_configData.ContainsKey("classes") &&
+			_configData["classes"].AsGodotDictionary().ContainsKey(className))
+		{
+			var classData = _configData["classes"].AsGodotDictionary()[className].AsGodotDictionary();
+
+			if (classData.ContainsKey("unlock_progression"))
+			{
+				var rawUnlocks = classData["unlock_progression"].AsGodotDictionary();
+
+				// 2. Konversi (String Key "5") menjadi (Int Key 5)
+				foreach (var key in rawUnlocks.Keys)
+				{
+					int killCount = key.AsInt32();
+					string skillName = rawUnlocks[key].AsString();
+					unlocks[killCount] = skillName;
+				}
+			}
+		}
+
+		return unlocks;
+	}
+
+	
 }

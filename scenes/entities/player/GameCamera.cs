@@ -9,6 +9,12 @@ namespace MementoTest.Core
 		[Export] public float MinZoom = 0.5f; // Semakin kecil = semakin jauh (wide)
 		[Export] public float MaxZoom = 2.0f; // Semakin besar = semakin dekat (close up)
 
+		private float _shakeStrength = 0f;
+		private float _shakeDuration = 0f;
+		private Vector2 _originalOffset;
+		private RandomNumberGenerator _rng = new RandomNumberGenerator();
+
+
 		// Target Zoom (agar transisi zoom halus)
 		private Vector2 _targetZoom;
 
@@ -34,10 +40,25 @@ namespace MementoTest.Core
 
 		public override void _Process(double delta)
 		{
-			// Lerp (Linear Interpolation) agar zoom terasa halus/smooth
-			// Angka 10.0f adalah kecepatan smoothing-nya
+			// Zoom smoothing
 			Zoom = Zoom.Lerp(_targetZoom, (float)delta * 10.0f);
+
+			// ===== SHAKE LOGIC =====
+			if (_shakeDuration > 0)
+			{
+				_shakeDuration -= (float)delta;
+
+				float offsetX = _rng.RandfRange(-_shakeStrength, _shakeStrength);
+				float offsetY = _rng.RandfRange(-_shakeStrength, _shakeStrength);
+
+				Offset = new Vector2(offsetX, offsetY);
+			}
+			else
+			{
+				Offset = Vector2.Zero;
+			}
 		}
+
 
 		public override void _Input(InputEvent @event)
 		{
@@ -64,5 +85,14 @@ namespace MementoTest.Core
 				}
 			}
 		}
+
+		public void Shake(float strength, float duration)
+		{
+			_shakeStrength = strength;
+			_shakeDuration = duration;
+			_originalOffset = Offset;
+			_rng.Randomize();
+		}
+
 	}
 }

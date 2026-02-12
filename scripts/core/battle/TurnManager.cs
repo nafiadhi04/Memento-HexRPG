@@ -40,6 +40,8 @@ namespace MementoTest.Core
 
 		private void StartPlayerTurn()
 		{
+			if (_player != null && _player.IsDead)
+				return;
 			CurrentTurn = TurnState.Player;
 			
 
@@ -65,12 +67,15 @@ namespace MementoTest.Core
 		private void OnEndTurnPressed()
 		{
 			if (CurrentTurn != TurnState.Player) return;
+			if (_player != null && _player.IsDead) return;
 			StartEnemyTurn();
 		}
 
 		// --- BAGIAN YANG DIPERBAIKI ---
 		public async void StartEnemyTurn()
 		{
+			if (_player != null && _player.IsDead)
+				return;
 			CurrentTurn = TurnState.Enemy;
 			GD.Print("--- ENEMY PHASE START ---");
 			if (_battleHUD != null) _battleHUD.UpdateTurnLabel("ENEMY TURN");

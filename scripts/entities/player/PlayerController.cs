@@ -74,7 +74,17 @@ namespace MementoTest.Entities
 
 		// Tambahkan variabel range serangan
 		private int _attackRange;
+		// Simpan tabel unlock yang sedang aktif (sesuai class player)
+		private Dictionary<int, string> _currentUnlockTable = new Dictionary<int, string>();
 
+		// Config untuk Lexical Scaling (Nilai default, nanti ditimpa JSON jika ada)
+		private int _lexDamageBase = 10;
+		private int _lexDamagePerChar = 5;
+		private int _lexApBase = 2;
+		private int _lexApPerChar = 1;
+
+		private bool _isDead = false;
+		public bool IsDead => _isDead;
 
 
 
@@ -126,6 +136,7 @@ namespace MementoTest.Entities
 
 		public override void _Process(double delta)
 		{
+			if (_isDead) return;
 			if (_isMoving || _isAttacking || _isHurt)
 				return;
 
@@ -165,6 +176,8 @@ namespace MementoTest.Entities
 		{
 			// 1. Tentukan Class
 			PlayerClassType classToLoad = PlayerClassType.Warrior;
+			CheckDeathCondition();
+
 
 			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
 			{
@@ -191,6 +204,19 @@ namespace MementoTest.Entities
 
 				// [FIX] Range diambil TERAKHIR. Ini menjamin nilai 6 dari JSON dipakai.
 				_attackRange = ConfigManager.Instance.GetClassRange(classToLoad);
+
+				var rawUnlocks = ConfigManager.Instance.GetClassUnlocks(classToLoad.ToString());
+
+				// Konversi manual dari Godot Dictionary ke System Dictionary
+				_currentUnlockTable = new System.Collections.Generic.Dictionary<int, string>();
+
+				foreach (var key in rawUnlocks.Keys)
+				{
+					// Pastikan key dikonversi ke int, value ke string
+					_currentUnlockTable[key] = rawUnlocks[key];
+				}
+
+				GD.Print($"[PLAYER] Loaded Unlock Table for {classToLoad}. Count: {_currentUnlockTable.Count}");
 
 				GD.Print($"[PLAYER] Class: {classToLoad} | Range Final: {_attackRange}");
 			}
@@ -238,6 +264,12 @@ namespace MementoTest.Entities
 				_hud.UpdateHP(_currentHP, MaxHP);
 				_hud.UpdateAP(_currentAP, MaxAP);
 			}
+
+			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
+			{
+				int savedKills = GameManager.Instance.CurrentSaveData.TotalKills;
+				CheckRetroactiveUnlocks(savedKills);
+			}
 		}
 		private void LoadSkillsForClass(PlayerClassType type)
 		{
@@ -252,6 +284,93 @@ namespace MementoTest.Entities
 					_skillDatabase[skill.CommandName.ToLower()] = skill;
 				}
 			}
+		}
+
+		public void RegisterKill()
+		{
+			if (GameManager.Instance == null) return;
+
+			// 1. Tambah Kill di Manager
+			GameManager.Instance.AddKillCount(); // Pastikan GameManager punya fungsi ini
+			int totalKills = GameManager.Instance.CurrentSaveData.TotalKills;
+
+			// 2. Cek apakah jumlah kill cocok dengan tabel config
+			if (_currentUnlockTable.ContainsKey(totalKills))
+			{
+				string skillName = _currentUnlockTable[totalKills];
+				UnlockLexicalSkill(skillName);
+			}
+		}
+
+		// Cek ulang saat Load Game (misal kill sudah 20, pastikan skill level 5 & 15 terbuka)
+		private void CheckRetroactiveUnlocks(int currentKills)
+		{
+			foreach (var kvp in _currentUnlockTable)
+			{
+				if (currentKills >= kvp.Key)
+				{
+					UnlockLexicalSkill(kvp.Value);
+				}
+			}
+		}
+
+		// Logic Inti: Generate Skill berdasarkan Panjang String
+		private void UnlockLexicalSkill(string skillName)
+		{
+			// Prevent Duplicate
+			if (_skillDatabase.ContainsKey(skillName.ToLower())) return;
+
+			int length = skillName.Length;
+
+			// Hitung Stats (Formula: Base + (Len * Multiplier))
+			int finalDamage = _lexDamageBase + (length * _lexDamagePerChar);
+			int finalAP = _lexApBase + (length * _lexApPerChar);
+
+			// Buat Skill Baru secara Runtime
+			var newSkill = new PlayerSkill();
+			newSkill.CommandName = skillName.ToUpper();
+			newSkill.Damage = finalDamage;
+			newSkill.ApCost = finalAP;
+			newSkill.Description = $"Lexical Skill (Len: {length}). Unlocked via combat.";
+
+			// --- LOGIC PENENTUAN TIPE SERANGAN BERDASARKAN CLASS ---
+			if (GameManager.Instance != null && GameManager.Instance.CurrentSaveData != null)
+			{
+				var currentClass = GameManager.Instance.CurrentSaveData.ClassType;
+
+				switch (currentClass)
+				{
+					case PlayerClassType.Archer:
+						newSkill.AttackType = AttackType.RangedBow;
+						// Pastikan variable BowProjectileScene sudah di-assign di Inspector
+						newSkill.ProjectileScene = BowProjectileScene;
+						break;
+
+					case PlayerClassType.Mage:
+						newSkill.AttackType = AttackType.RangedMagic;
+						// Pastikan variable MagicProjectileScene sudah di-assign di Inspector
+						newSkill.ProjectileScene = MagicProjectileScene;
+						break;
+
+					case PlayerClassType.Warrior:
+					default:
+						newSkill.AttackType = AttackType.Melee;
+						break;
+				}
+			}
+			else
+			{
+				// Fallback default
+				newSkill.AttackType = AttackType.Melee;
+			}
+			// -------------------------------------------------------
+
+			// Masukkan ke List
+			SkillList.Add(newSkill);
+			_skillDatabase[skillName.ToLower()] = newSkill;
+
+			_hud?.LogToTerminal($"!!! NEW SKILL: {skillName} (DMG: {finalDamage}) !!!", Colors.Gold);
+			GD.Print($"[LEXICAL] Unlocked {skillName} for {GameManager.Instance?.CurrentSaveData?.ClassType}. Type: {newSkill.AttackType}");
 		}
 
 
@@ -284,6 +403,8 @@ namespace MementoTest.Entities
 		// --- INPUT HANDLING (SATPAM) ---
 		public override void _Input(InputEvent @event)
 		{
+			if (_isDead) return;
+
 			if (_isInputLocked) return;
 			if (@event is InputEventMouseButton mouse && mouse.Pressed && mouse.ButtonIndex == MouseButton.Left)
 			{
@@ -572,6 +693,7 @@ namespace MementoTest.Entities
 		private async void TryMoveToTile(Vector2 mousePos)
 		{
 			if (_mapManager == null) return;
+			if (_isDead) return;
 
 			Vector2I targetGrid = _mapManager.GetGridCoordinates(mousePos);
 
@@ -585,6 +707,8 @@ namespace MementoTest.Entities
 			{
 				_currentAP -= moveCost;
 				_hud?.UpdateAP(_currentAP, MaxAP);
+				CheckDeathCondition();
+
 
 				await MoveToGrid(targetGrid);
 				await TriggerEnemyTurn();
@@ -671,7 +795,11 @@ namespace MementoTest.Entities
 		// --- COMBAT LOGIC ---
 		private async void ExecuteCombatCommand(string command)
 		{
-			
+			if (_isDead)
+			{
+				GD.Print("BLOCKED BECAUSE DEAD");
+				return;
+			}
 			_mapManager?.ClearMovementOptions();
 			// Validasi Target
 			if (_targetEnemy == null || !GodotObject.IsInstanceValid(_targetEnemy))
@@ -722,6 +850,8 @@ namespace MementoTest.Entities
 					_currentAP -= skill.ApCost;
 					_currentAP = Math.Min(_currentAP + SuccessRegenAP, MaxAP); // Regen + Cap Max
 					_hud?.UpdateAP(_currentAP, MaxAP);
+					CheckDeathCondition();
+
 
 					_hud?.LogToTerminal($"> EXECUTING '{command.ToUpper()}'...", Colors.Green);
 
@@ -745,6 +875,8 @@ namespace MementoTest.Entities
 				// 1. Hukuman AP
 				_currentAP = Math.Max(0, _currentAP - TypoPenaltyAP);
 				_hud?.UpdateAP(_currentAP, MaxAP);
+				CheckDeathCondition();
+
 
 				// 2. [SCORING] Reset Combo karena Typo!
 				ScoreManager.Instance?.ResetCombo();
@@ -829,6 +961,8 @@ namespace MementoTest.Entities
 
 				if (GodotObject.IsInstanceValid(_targetEnemy))
 					_targetEnemy.TakeDamage(damage);
+				TriggerCameraShake(4f, 0.1f);
+
 
 				// balik ke posisi awal
 				_activeTween = CreateTween();
@@ -861,7 +995,7 @@ namespace MementoTest.Entities
 				SpawnProjectile(attackType, damage, rangedDir);
 			}
 
-
+			
 
 			// ==============================
 			// KEMBALI KE IDLE
@@ -900,6 +1034,23 @@ namespace MementoTest.Entities
 				dir,
 				_isTargetLocked ? _targetEnemy : null
 			);
+		}
+
+
+		private void CheckDeathCondition()
+		{
+			GD.Print("CHECK DEATH CALLED | HP:", _currentHP, " AP:", _currentAP);
+
+			if (_isDead) return;
+
+			if (_currentHP <= 0)
+			{
+				Die("HP DEPLETED");
+			}
+			else if (_currentAP <= 0)
+			{
+				Die("AP DEPLETED");
+			}
 		}
 
 
@@ -987,13 +1138,28 @@ namespace MementoTest.Entities
 			}
 		}
 
+		private void TriggerCameraShake(float strength, float duration)
+		{
+			var camera = GetTree().GetFirstNodeInGroup("GameCamera") as MementoTest.Core.GameCamera;
+			camera?.Shake(strength, duration);
+		}
+
 		public void TakeDamage(int damage)
 		{
+			if (_isDead) return;
 			// === PARRY / BLOCK / MISS ===
 			if (damage <= 0)
 			{
-				ShowDamagePopup(damage); // optional (misal "PARRY")
-				return; // ⛔ STOP di sini
+				ShowDamagePopup(damage);
+
+				// 🔥 SCREEN SHAKE SAAT PARRY
+				var camera = GetTree().GetFirstNodeInGroup("GameCamera") as GameCamera;
+				if (camera != null)
+				{
+					camera.Shake(6f, 0.15f);
+				}
+
+				return;
 			}
 
 			// === DAMAGE VALID ===
@@ -1009,9 +1175,17 @@ namespace MementoTest.Entities
 
 			ScoreManager.Instance.ResetCombo();
 
-			if (_currentHP <= 0)
-				Die();
+			// 🔥 Optional: shake kecil saat kena damage biasa
+			var cam = GetTree().GetFirstNodeInGroup("GameCamera") as GameCamera;
+			if (cam != null)
+			{
+				cam.Shake(3f, 0.1f);
+			}
+			CheckDeathCondition();
+
+
 		}
+
 
 		private async void PlayHurtAnimation()
 		{
@@ -1043,8 +1217,52 @@ namespace MementoTest.Entities
 				Sprite.Play(idleAnim);
 		}
 
+		private async Task ShowYouLoseText(string reason)
+		{
+			var canvas = new CanvasLayer();
+			canvas.Layer = 100;
+			GetTree().CurrentScene.AddChild(canvas);
 
+			var bg = new ColorRect();
+			bg.Color = new Color(0, 0, 0, 0);
+			bg.Size = GetViewport().GetVisibleRect().Size;
+			canvas.AddChild(bg);
 
+			// Container supaya rapi vertical
+			var vbox = new VBoxContainer();
+			vbox.AnchorLeft = 0;
+			vbox.AnchorRight = 1;
+			vbox.AnchorTop = 0;
+			vbox.AnchorBottom = 1;
+			vbox.Alignment = BoxContainer.AlignmentMode.Center;
+			vbox.SizeFlagsVertical = Control.SizeFlags.ExpandFill;
+			canvas.AddChild(vbox);
+
+			// YOU LOSE
+			var title = new Label();
+			title.Text = "YOU LOSE";
+			title.HorizontalAlignment = HorizontalAlignment.Center;
+			title.Modulate = new Color(1, 0, 0, 0);
+			title.AddThemeFontSizeOverride("font_size", 72);
+
+			// Reason text
+			var reasonLabel = new Label();
+			reasonLabel.Text = reason;
+			reasonLabel.HorizontalAlignment = HorizontalAlignment.Center;
+			reasonLabel.Modulate = new Color(1, 1, 1, 0);
+			reasonLabel.AddThemeFontSizeOverride("font_size", 32);
+
+			vbox.AddChild(title);
+			vbox.AddChild(reasonLabel);
+
+			// Fade
+			var tween = CreateTween();
+			tween.TweenProperty(bg, "color:a", 0.7f, 0.5f);
+			tween.TweenProperty(title, "modulate:a", 1.0f, 0.5f);
+			tween.TweenProperty(reasonLabel, "modulate:a", 1.0f, 0.5f);
+
+			await ToSignal(tween, Tween.SignalName.Finished);
+		}
 		private void ShowDamagePopup(int amount, string label = "")
 		{
 			if (DamagePopupScene == null) return;
@@ -1076,13 +1294,30 @@ namespace MementoTest.Entities
 				GD.PrintErr("Script DamagePopup belum punya fungsi Setup!");
 			}
 		}
-
-		private void Die()
+		private async void Die(string reason)
 		{
-			GD.Print("GAME OVER");
-			SetPhysicsProcess(false);
-			SetProcessInput(false); // Matikan input
+			if (_isDead) return;
+			_isDead = true;
+
+			_isInputLocked = true;
+
+			Sprite.Stop();
+			Sprite.Frame = 0;
+			Sprite.Play("die");
+
+			await ToSignal(GetTree().CreateTimer(0.9f), "timeout");
+
+			await ShowYouLoseText(reason);
+
+			await ToSignal(GetTree().CreateTimer(2.0f), "timeout");
+
+			GetTree().ChangeSceneToFile("res://scenes/ui/main_menu.tscn");
 		}
+
+
+
+
+
 
 
 	}
