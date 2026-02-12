@@ -29,6 +29,12 @@ namespace MementoTest.UI
 		[Export] public RichTextLabel CombatLogLabel;
 		[Export] public ScrollContainer LogScroll;
 
+
+
+
+
+
+
 		[ExportGroup("Combat UI")]
 		[Export] public Control CombatPanel;
 
@@ -49,7 +55,9 @@ namespace MementoTest.UI
 		private const string COLOR_CORRECT = "#00FF00";
 		private const string COLOR_WRONG = "#FF4444";
 		private const string COLOR_GHOST = "#FFFFFF40";
-		private const int MAX_LOG_LINES = 30;
+		private const int MAX_LOG_LINES = 3;
+
+
 
 		private HashSet<string> _availableCommands = new HashSet<string>();
 		private TaskCompletionSource<bool> _reactionTaskSource;
@@ -84,6 +92,14 @@ namespace MementoTest.UI
 				// Buat input asli tak terlihat tapi tetap fungsional
 				CommandInput.Modulate = new Color(1, 1, 1, 0);
 			}
+			if (TurnLabel != null)
+				TurnLabel.Visible = false;
+
+
+
+			ConnectToScoreManager();
+			AddToGroup("HUD");
+
 		}
 		public override void _Process(double delta)
 		{
@@ -95,7 +111,21 @@ namespace MementoTest.UI
 					CommandInput.GrabFocus();
 				}
 			}
+
+
+			// existing reaction focus logic
+			if (_isReactionPhase && CommandInput != null)
+			{
+				if (!CommandInput.HasFocus() && CommandInput.Visible && CommandInput.Editable)
+				{
+					CommandInput.GrabFocus();
+				}
+			}
 		}
+
+
+
+
 		private void InitializeHUD()
 		{
 			SetupInputStyle();
@@ -105,6 +135,12 @@ namespace MementoTest.UI
 				ReactionPanel.Visible = false;
 		}
 		#endregion
+
+		public void SetTurnLabelVisible(bool visible)
+		{
+			if (TurnLabel != null)
+				TurnLabel.Visible = visible;
+		}
 
 		#region Input Logic
 		private void SetupInputStyle()
@@ -309,13 +345,16 @@ namespace MementoTest.UI
 			string timeStr = DateTime.Now.ToString("HH:mm:ss");
 			string newLine = $"[color=#888888][{timeStr}][/color] [color={color.ToHtml()}]{message}[/color]";
 
-			// Tambahkan baris baru dan batasi jumlah baris agar tidak lag
-			var lines = CombatLogLabel.Text.Split('\n').ToList();
-			if (lines.Count >= MAX_LOG_LINES) lines.RemoveAt(0);
+			var lines = CombatLogLabel.Text
+				.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+				.ToList();
 
-			CombatLogLabel.Text = string.Join('\n', lines);
-			if (!string.IsNullOrEmpty(CombatLogLabel.Text)) CombatLogLabel.Text += "\n";
-			CombatLogLabel.Text += newLine;
+			lines.Add(newLine);
+
+			if (lines.Count > MAX_LOG_LINES)
+				lines = lines.Skip(lines.Count - MAX_LOG_LINES).ToList();
+
+			CombatLogLabel.Text = string.Join("\n", lines);
 
 			ScrollToBottom();
 		}
@@ -371,27 +410,55 @@ namespace MementoTest.UI
 			result = (completedTask == inputTask) ? await inputTask : false;
 
 			// 5. Cleanup
+			// 5. Cleanup
+			if (!IsInstanceValid(this))
+				return false;
+
 			_isReactionPhase = false;
+
 			UpdateReactionUI(false);
+
 			EnableInput(false);
 			ResetInputUI();
 
+
 			return result;
 		}
+		public void LogRPG(string message, string icon, Color color)
+		{
+			if (CombatLogLabel == null) return;
+
+			string formatted = $"{icon}  {message}";
+			LogToTerminal(formatted, color);
+		}
+
 
 		private void UpdateReactionUI(bool show, float time = 0)
 		{
-			if (ReactionPanel != null) ReactionPanel.Visible = show;
+			if (!IsInstanceValid(this)) return;
+
+			if (ReactionPanel == null || !IsInstanceValid(ReactionPanel))
+				return;
+
+			ReactionPanel.Visible = show;
+
 			if (show)
 			{
-				ReactionPromptLabel.Text = $"TYPE: {_expectedReactionWord}!";
-				if (ReactionTimerBar != null)
+				if (ReactionPromptLabel != null && IsInstanceValid(ReactionPromptLabel))
+					ReactionPromptLabel.Text = $"TYPE: {_expectedReactionWord}!";
+
+				if (ReactionTimerBar != null && IsInstanceValid(ReactionTimerBar))
 				{
 					ReactionTimerBar.MaxValue = time;
 					ReactionTimerBar.Value = time;
+
 					_timerTween?.Kill();
-					_timerTween = CreateTween();
-					_timerTween.TweenProperty(ReactionTimerBar, "value", 0, time);
+
+					if (IsInstanceValid(ReactionTimerBar))
+					{
+						_timerTween = CreateTween();
+						_timerTween.TweenProperty(ReactionTimerBar, "value", 0, time);
+					}
 				}
 			}
 		}
@@ -415,6 +482,7 @@ namespace MementoTest.UI
 
 			EnableInput(true);
 		}
+
 		public void SetEndTurnButtonInteractable(bool interactable)
 		{
 			_canEndTurn = interactable;

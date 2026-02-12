@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://8ta2vd0iv23n"]
 
 [ext_resource type="Script" uid="uid://dfdn7hnohdxr6" path="res://scripts/ui/BattleHUD.cs" id="1_dy3po"]
+[ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="2_ytn0o"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_dy3po"]
 font_size = 24
@@ -69,40 +70,44 @@ anchors_preset = 10
 anchor_right = 1.0
 offset_bottom = 45.0
 grow_horizontal = 2
+theme = ExtResource("2_ytn0o")
 text = "PLAYER PHASE"
 label_settings = SubResource("LabelSettings_dy3po")
 horizontal_alignment = 1
 vertical_alignment = 1
 
 [node name="LogAnchor" type="MarginContainer" parent="MainControl" unique_id=1324041813]
+custom_minimum_size = Vector2(250, 110)
 layout_mode = 1
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -220.0
-offset_right = 430.0
+offset_top = -75.0
+offset_right = 250.0
+offset_bottom = 55.0
 grow_vertical = 0
-theme_override_constants/margin_left = 20
-theme_override_constants/margin_bottom = 20
 
 [node name="LogBackground" type="PanelContainer" parent="MainControl/LogAnchor" unique_id=1627618403]
 layout_mode = 2
+mouse_filter = 2
 
 [node name="LogMargin" type="MarginContainer" parent="MainControl/LogAnchor/LogBackground" unique_id=777923430]
 layout_mode = 2
 theme_override_constants/margin_left = 10
 
 [node name="LogScroll" type="ScrollContainer" parent="MainControl/LogAnchor/LogBackground/LogMargin" unique_id=1863086656]
-custom_minimum_size = Vector2(400, 200)
+custom_minimum_size = Vector2(200, 90)
 layout_mode = 2
+mouse_filter = 2
 horizontal_scroll_mode = 0
 
 [node name="CombatLogLabel" type="RichTextLabel" parent="MainControl/LogAnchor/LogBackground/LogMargin/LogScroll" unique_id=1734370348]
 custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 size_flags_vertical = 3
+theme = ExtResource("2_ytn0o")
+theme_override_font_sizes/normal_font_size = 12
 bbcode_enabled = true
-fit_content = true
 scroll_active = false
 tab_size = 15
 
@@ -208,8 +213,11 @@ layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_top = 1.0
 offset_right = 28.5
+offset_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("2_ytn0o")
 alignment = 1
 flat = true

@@ -1,7 +1,13 @@
 [gd_scene format=3 uid="uid://br87fyebj7yia"]
 
 [ext_resource type="Script" uid="uid://cyiht1m7jxmaw" path="res://scripts/ui/MainMenu.cs" id="1_fe2o3"]
+[ext_resource type="FontFile" uid="uid://dxu2xyi303c0s" path="res://assets/fonts/monogram/ttf/monogram.ttf" id="1_m1kxf"]
 [ext_resource type="PackedScene" uid="uid://bhia44k26gevy" path="res://scenes/ui/save_menu.tscn" id="2_fe2o3"]
+[ext_resource type="Texture2D" uid="uid://k3ckd8ih6hm4" path="res://assets/ui/background/MenuBg.png" id="3_1g8jr"]
+[ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="5_x2yvf"]
+
+[sub_resource type="Theme" id="Theme_x2yvf"]
+default_font = ExtResource("1_m1kxf")
 
 [node name="MainMenu" type="Control" unique_id=1460245882]
 layout_mode = 3
@@ -10,28 +16,38 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = SubResource("Theme_x2yvf")
 script = ExtResource("1_fe2o3")
 GameplayScene = ExtResource("2_fe2o3")
 
-[node name="Background" type="ColorRect" parent="." unique_id=126267048]
+[node name="Background2" type="TextureRect" parent="." unique_id=1071074355]
+modulate = Color(0.043137256, 0.67058825, 0.54901963, 0.5372549)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -59.0
+offset_top = -60.0
+offset_right = 95.0
+offset_bottom = 137.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.019607844, 0.03529412, 0.23137255, 1)
+texture = ExtResource("3_1g8jr")
 
 [node name="TitleLabel" type="Label" parent="." unique_id=1108972385]
 layout_mode = 1
 anchors_preset = 5
 anchor_left = 0.5
 anchor_right = 0.5
-offset_left = -31.0
-offset_right = 31.0
-offset_bottom = 23.0
+offset_left = -46.0
+offset_top = 57.0
+offset_right = 44.0
+offset_bottom = 89.0
 grow_horizontal = 2
+theme = ExtResource("5_x2yvf")
+theme_override_font_sizes/font_size = 40
 text = "HexRPG"
+horizontal_alignment = 1
 
 [node name="MenuContainer" type="VBoxContainer" parent="." unique_id=1074231395]
 layout_mode = 1

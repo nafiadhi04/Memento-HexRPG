@@ -21,19 +21,11 @@ namespace MementoTest.Core
 
 		public override void _Ready()
 		{
-			// Cari HUD
-			if (GetParent().HasNode("BattleHUD"))
-			{
-				_battleHUD = GetParent().GetNode<BattleHUD>("BattleHUD");
-				_battleHUD.EndTurnRequested += OnEndTurnPressed;
-			}
+			_battleHUD = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
 
-			// Cari Player (Pastikan Player ada di Group "Player" atau cari manual)
-			// Ini berguna agar musuh yang jauh tidak ikut menyerang
 			var players = GetTree().GetNodesInGroup("Player");
 			if (players.Count > 0)
 				_player = players[0] as PlayerController;
-
 
 			CallDeferred(MethodName.StartPlayerTurn);
 		}
@@ -42,22 +34,31 @@ namespace MementoTest.Core
 		{
 			if (_player != null && _player.IsDead)
 				return;
+
 			CurrentTurn = TurnState.Player;
-			
 
 			if (_battleHUD != null)
 			{
+				// 🔥 Hanya tampil jika lock enemy
+				if (_player != null && _player.IsTargetLocked)
+				{
+					_battleHUD.UpdateTurnLabel("PLAYER PHASE");
+					_battleHUD.SetTurnLabelVisible(true);
+				}
+				else
+				{
+					_battleHUD.SetTurnLabelVisible(false);
+				}
+
 				_battleHUD.SetEndTurnButtonInteractable(true);
-				_battleHUD.UpdateTurnLabel("PLAYER PHASE");
+				_battleHUD.EnterPlayerCommandPhase(
+					_player.GetAvailableSkillCommands()
+				);
 			}
-
-			_battleHUD.EnterPlayerCommandPhase(
-	_player.GetAvailableSkillCommands()
-);
-
 
 			EmitSignal(SignalName.PlayerTurnStarted);
 		}
+
 
 		public void ForceEndPlayerTurn()
 		{
@@ -78,7 +79,12 @@ namespace MementoTest.Core
 				return;
 			CurrentTurn = TurnState.Enemy;
 			GD.Print("--- ENEMY PHASE START ---");
-			if (_battleHUD != null) _battleHUD.UpdateTurnLabel("ENEMY TURN");
+			if (_battleHUD != null)
+			{
+				_battleHUD.UpdateTurnLabel("ENEMY TURN");
+				_battleHUD.SetTurnLabelVisible(true);
+			}
+
 
 			// 1. [FIX] Cari musuh menggunakan GROUP, bukan Children.
 			// Ini akan menemukan musuh meskipun mereka ada di dalam folder Area1, Area2, dll.

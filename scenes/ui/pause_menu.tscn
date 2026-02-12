@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dxvef7x3tcy2a"]
 
 [ext_resource type="Script" uid="uid://yldl87ljhgtw" path="res://scripts/interfaces/PauseMenu.cs" id="1_6tw0m"]
+[ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="2_0lmf7"]
 
 [node name="PauseMenu" type="CanvasLayer" unique_id=877414348 node_paths=PackedStringArray("ResumeBtn", "RestartBtn", "MainMenuBtn", "SaveQuitBtn")]
 process_mode = 3
@@ -33,22 +34,27 @@ alignment = 1
 
 [node name="PauseLabel" type="Label" parent="CenterContainer/MenuBox" unique_id=934231622]
 layout_mode = 2
+theme = ExtResource("2_0lmf7")
 text = "PAUSE"
 horizontal_alignment = 1
 
 [node name="Resumebtn" type="Button" parent="CenterContainer/MenuBox" unique_id=1589477111]
 layout_mode = 2
+theme = ExtResource("2_0lmf7")
 action_mode = 0
 text = "RESUME"
 
 [node name="Restartbtn" type="Button" parent="CenterContainer/MenuBox" unique_id=664562165]
 layout_mode = 2
+theme = ExtResource("2_0lmf7")
 text = "RESTART"
 
 [node name="MainMenubtn" type="Button" parent="CenterContainer/MenuBox" unique_id=243199414]
 layout_mode = 2
+theme = ExtResource("2_0lmf7")
 text = "MAIN MENU"
 
 [node name="SaveQuitbtn" type="Button" parent="CenterContainer/MenuBox" unique_id=801927928]
 layout_mode = 2
+theme = ExtResource("2_0lmf7")
 text = "SAVE & QUIT"

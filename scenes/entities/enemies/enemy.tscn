@@ -1,7 +1,6 @@
 [gd_scene format=3 uid="uid://d1rokv21p7rhx"]
 
 [ext_resource type="Script" uid="uid://w7r8srqg76ep" path="res://scripts/entities/enemy/EnemyController.cs" id="1_essrt"]
-[ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="1_yfmsl"]
 [ext_resource type="PackedScene" uid="uid://fae5gohr724t" path="res://scenes/ui/damage_popup.tscn" id="3_pm80n"]
 [ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="4_20lqd"]
 [ext_resource type="PackedScene" uid="uid://cxuxljpyebawn" path="res://scenes/ui/enemy_health_bar.tscn" id="5_gflvi"]
@@ -26,19 +25,19 @@ ReactionTimeRanged = 5.0
 DamagePopupScene = ExtResource("3_pm80n")
 SpeedBonusProfile = SubResource("Resource_j3iiu")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=630790635]
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=309955381]
 modulate = Color(1, 0.3, 0.3, 1)
-position = Vector2(0, 60)
-texture = ExtResource("1_yfmsl")
+position = Vector2(0, 61.000004)
+scale = Vector2(6, 6)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1318861657]
-position = Vector2(1.9895203e-13, 60)
+position = Vector2(0, 61.000004)
 rotation = 1.5707964
 scale = Vector2(3, 1)
 shape = SubResource("CapsuleShape2D_essrt")
 
 [node name="HealthBar" parent="." unique_id=75040711 instance=ExtResource("5_gflvi")]
-offset_left = 89.999985
-offset_top = 119.999985
-offset_right = 239.99998
-offset_bottom = 146.99998
+offset_left = 92.0
+offset_top = 110.0
+offset_right = 242.0
+offset_bottom = 137.0

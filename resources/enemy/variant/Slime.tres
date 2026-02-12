@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://d0i2kikulsp72"]
+
+[ext_resource type="Script" uid="uid://dc14cpjkoti2i" path="res://scripts/entities/enemy/EnemyData.cs" id="1_2vjda"]
+[ext_resource type="SpriteFrames" uid="uid://qqose17fapjg" path="res://resources/enemy/variant/slime_frames.tres" id="1_4lou3"]
+
+[resource]
+script = ExtResource("1_2vjda")
+EnemyName = "Slime"
+MaxHP = 20
+SpriteFrames = ExtResource("1_4lou3")
+metadata/_custom_type_script = "uid://dc14cpjkoti2i"

@@ -1,8 +1,10 @@
 [gd_scene format=3 uid="uid://bhia44k26gevy"]
 
+[ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="1_fgvag"]
 [ext_resource type="Script" uid="uid://ds7dnbbl4fpaa" path="res://scripts/interfaces/SaveMenu.cs" id="1_ne8v6"]
 [ext_resource type="PackedScene" uid="uid://pais62e5oc6n" path="res://scenes/ui/save_slot.tscn" id="1_uo4td"]
 [ext_resource type="PackedScene" uid="uid://dy0qtiis24i8l" path="res://scenes/levels/main_scene.tscn" id="2_nemxf"]
+[ext_resource type="Texture2D" uid="uid://k3ckd8ih6hm4" path="res://assets/ui/background/MenuBg.png" id="4_rppdo"]
 
 [node name="SaveMenu" type="Control" unique_id=1777335411]
 layout_mode = 3
@@ -11,17 +13,23 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+theme = ExtResource("1_fgvag")
 script = ExtResource("1_ne8v6")
 GameplayScene = ExtResource("2_nemxf")
 
-[node name="Background" type="ColorRect" parent="." unique_id=352683141]
+[node name="Background2" type="TextureRect" parent="." unique_id=1356845732]
+modulate = Color(0.043137256, 0.67058825, 0.54901963, 0.5372549)
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
+offset_left = -59.0
+offset_top = -60.0
+offset_right = 95.0
+offset_bottom = 137.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.020699995, 0.034653317, 0.23, 1)
+texture = ExtResource("4_rppdo")
 
 [node name="MainLayout" type="VBoxContainer" parent="." unique_id=417258951]
 layout_mode = 1

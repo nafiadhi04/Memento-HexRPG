@@ -1,5 +1,6 @@
 using Godot;
 using System;
+using static MementoTest.Core.GameManager;
 
 namespace MementoTest.Core
 {
@@ -27,6 +28,7 @@ namespace MementoTest.Core
         // Panggil ini kalau Player mengetik BENAR
         public void AddScore(int baseScore)
         {
+            AudioHooks.Trigger(AudioEventType.ComboIncrease);
             CurrentCombo++;
             if (CurrentCombo > MaxCombo) MaxCombo = CurrentCombo;
 

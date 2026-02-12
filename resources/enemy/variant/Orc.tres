@@ -1,0 +1,33 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3 uid="uid://ui43indugmj"]
+
+[ext_resource type="Texture2D" uid="uid://c767m4e2w50om" path="res://assets/sprites/entities/enemy/Orc-Grunt.png" id="1_r3uaq"]
+[ext_resource type="Script" uid="uid://dc14cpjkoti2i" path="res://scripts/entities/enemy/EnemyData.cs" id="2_v3sje"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_s6uh1"]
+atlas = ExtResource("1_r3uaq")
+region = Rect2(0, 0, 32, 36)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mp77m"]
+atlas = ExtResource("1_r3uaq")
+region = Rect2(32, 0, 32, 36)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_gg6gc"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_s6uh1")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mp77m")
+}],
+"loop": true,
+"name": &"Idle",
+"speed": 5.0
+}]
+
+[resource]
+script = ExtResource("2_v3sje")
+EnemyName = "Orc"
+Damage = 30
+SpriteFrames = SubResource("SpriteFrames_gg6gc")
+metadata/_custom_type_script = "uid://dc14cpjkoti2i"

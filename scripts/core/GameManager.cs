@@ -63,31 +63,40 @@ namespace MementoTest.Core
 		// Dipanggil saat New Game -> Create Character
 		public void CreateNewSave(int slotIndex, string name, PlayerClassType classType)
 		{
-			CurrentSaveData.IsVictory = false;
-
 			ActiveSlotIndex = slotIndex;
 			CurrentSlotIndex = slotIndex;
-            CurrentSaveData = new SaveData
-            {
-                PlayerName = name,
-                ClassType = classType,
-                LastPlayedDate = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
-            };
 
-            // --- TAMBAHAN: Set HP/AP Awal berdasarkan Config ---
-            if (ConfigManager.Instance != null)
+			CurrentSaveData = new SaveData
+			{
+				PlayerName = name,
+				ClassType = classType,
+				LastPlayedDate = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
+				IsVictory = false
+			};
+
+			// --- Set HP/AP Awal berdasarkan Config ---
+			if (ConfigManager.Instance != null)
 			{
 				CurrentSaveData.CurrentHP = ConfigManager.Instance.GetClassHP(classType);
 				CurrentSaveData.CurrentAP = ConfigManager.Instance.GetClassAP(classType);
 			}
 			else
 			{
-				// Fallback jika ConfigManager belum siap
 				CurrentSaveData.CurrentHP = 100;
 				CurrentSaveData.CurrentAP = 5;
 			}
 
-			SaveGame(); // Tulis ke disk
+			SaveGame();
+		}
+
+		public static class AudioHooks
+		{
+			public static void Trigger(AudioEventType type)
+			{
+				GD.Print($"[AUDIO HOOK] {type}");
+				// Nanti bisa diganti:
+				// AudioManager.Instance.Play(type);
+			}
 		}
 
 		// Dipanggil saat Continue -> Pilih Slot

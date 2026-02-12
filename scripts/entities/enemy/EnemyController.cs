@@ -7,6 +7,7 @@ using MementoTest.Entities;
 using MementoTest.Resources;
 using MementoTest.Core;
 using MementoTest.UI;
+using static MementoTest.Core.GameManager;
 
 namespace MementoTest.Entities
 {
@@ -16,8 +17,8 @@ namespace MementoTest.Entities
 		 * EXPORT / CONFIG
 		 * ======================= */
 		[ExportGroup("Stats")]
-		[Export] public int MaxHP = 50;
-		[Export] public string EnemyName = "Goblin";
+		public int MaxHP => Data != null ? Data.MaxHP : 50;
+		public string EnemyName => Data != null ? Data.EnemyName : "Enemy";
 
 		[ExportGroup("Movement")]
 		[Export] public float MoveDuration = 0.3f;
@@ -29,7 +30,7 @@ namespace MementoTest.Entities
 		[Export] public PackedScene DamagePopupScene;
 		// Fallback projectile jika di Skill kosong (Opsional)
 		[Export] public PackedScene DefaultProjectilePrefab;
-		[Export] public AnimatedSprite2D Sprite; // Referensi visual
+		private AnimatedSprite2D Sprite; // Referensi visual
 
 		[ExportGroup("AI")]
 		[Export] public EnemyAIProfile AiProfile;
@@ -38,6 +39,7 @@ namespace MementoTest.Entities
 		[ExportGroup("Scoring")]
 		[Export] public SpeedBonusProfile SpeedBonusProfile;
 
+		[Export] public EnemyData Data;
 
 		/* =======================
 		 * STATE
@@ -55,6 +57,9 @@ namespace MementoTest.Entities
 		private BattleHUD _hud;
 		private bool _isExecutingTurn = false;
 		private bool _isAttacking = false;
+		private int _damage;
+		private int _sightRange;
+
 
 
 		private readonly Random _rng = new();
@@ -74,7 +79,29 @@ namespace MementoTest.Entities
 		 * ======================= */
 		public override void _Ready()
 		{
-			_currentHP = MaxHP;
+			Modulate = Colors.White;
+			Visible = true;
+			if (Data != null)
+			{
+				_currentHP = Data.MaxHP;
+				_damage = Data.Damage;
+				_sightRange = Data.SightRange;
+				Sprite = GetNodeOrNull<AnimatedSprite2D>("AnimatedSprite2D");
+
+				GD.Print("Sprite found: ", Sprite);
+				GD.Print("Data: ", Data);
+				GD.Print("SpriteFrames: ", Data?.SpriteFrames);
+
+				if (Sprite != null && Data != null && Data.SpriteFrames != null)
+				{
+					Sprite.SpriteFrames = Data.SpriteFrames;
+
+					Sprite.Visible = true;
+					Sprite.Modulate = Colors.White;
+
+					Sprite.Play("idle"); // gunakan huruf besar
+				}
+			}
 
 			_healthBar = GetNodeOrNull<ProgressBar>("HealthBar");
 			if (_healthBar != null)
@@ -86,6 +113,14 @@ namespace MementoTest.Entities
 			_mapManager = MapManager.Instance;
 			_currentGridPos = _mapManager.WorldToGrid(GlobalPosition);
 			GlobalPosition = _mapManager.GridToWorld(_currentGridPos);
+
+
+			Sprite.ZIndex = 100;
+			Sprite.Visible = true;
+			Sprite.Modulate = Colors.White;
+
+			Sprite.Play(Sprite.SpriteFrames.GetAnimationNames()[0]);
+
 
 			_targetPlayer = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
 			_hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
@@ -500,6 +535,7 @@ namespace MementoTest.Entities
 		{
 			if (_isAttacking) return;
 			_isAttacking = true;
+			AudioHooks.Trigger(AudioEventType.EnemyAttack);
 
 			Vector2 startPos = GlobalPosition;
 			Vector2 dir = startPos.DirectionTo(_targetPlayer.GlobalPosition);
@@ -515,6 +551,7 @@ namespace MementoTest.Entities
 				bool melee = skill.Range <= AiProfile.MeleeThreshold;
 				string word = melee ? "parry" : "dodge";
 				float time = melee ? ReactionTimeMelee : ReactionTimeRanged;
+				AudioHooks.Trigger(AudioEventType.Parry);
 
 				success = await _hud.WaitForPlayerReaction(word, time);
 			}
@@ -522,6 +559,8 @@ namespace MementoTest.Entities
 			// 🔥 SATU-SATUNYA DAMAGE CALL
 			int finalDamage = success ? 0 : skill.Damage;
 			_targetPlayer.TakeDamage(finalDamage);
+			AudioHooks.Trigger(AudioEventType.EnemyHurt);
+
 			TriggerCameraShake(4f, 0.1f);
 
 
@@ -765,6 +804,13 @@ namespace MementoTest.Entities
 
 		private async void Die()
 		{
+			_hud?.LogRPG(
+	$"{this.Name} has fallen...",
+	"☠️",
+	Colors.Red
+);
+			AudioHooks.Trigger(AudioEventType.EnemyDeath);
+
 			Tween t = CreateTween();
 			t.TweenProperty(this, "modulate:a", 0f, 0.4f);
 			t.TweenProperty(this, "scale", Vector2.Zero, 0.4f);

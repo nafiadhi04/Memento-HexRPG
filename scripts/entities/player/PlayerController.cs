@@ -6,6 +6,7 @@ using MementoTest.UI;
 using MementoTest.Core;
 using MementoTest.Resources;
 using System.Linq;
+using static MementoTest.Core.GameManager;
 
 namespace MementoTest.Entities
 {
@@ -85,6 +86,8 @@ namespace MementoTest.Entities
 
 		private bool _isDead = false;
 		public bool IsDead => _isDead;
+		public bool IsTargetLocked => _isTargetLocked;
+
 
 
 
@@ -524,6 +527,9 @@ namespace MementoTest.Entities
 						_isTargetLocked = false;
 						_targetEnemy = null;
 
+						var hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
+						hud?.SetTurnLabelVisible(false);
+
 						_hud?.ShowCombatPanel(false);
 						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
 
@@ -535,6 +541,9 @@ namespace MementoTest.Entities
 						// === LOCK BARU (Ganti target atau lock baru) ===
 						_targetEnemy = enemy;
 						_isTargetLocked = true;
+
+						var hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
+						hud?.SetTurnLabelVisible(true);
 
 						// Update Arah Pandang Player
 						Vector2 direction = (enemy.GlobalPosition - GlobalPosition).Normalized();
@@ -660,6 +669,8 @@ namespace MementoTest.Entities
 						_isTargetLocked = false;
 						_targetEnemy = null;
 						_hud?.ShowCombatPanel(false);
+
+
 
 						_hud?.LogToTerminal("> TARGET UNLOCKED", Colors.Gray);
 						return;
@@ -853,7 +864,12 @@ namespace MementoTest.Entities
 					CheckDeathCondition();
 
 
-					_hud?.LogToTerminal($"> EXECUTING '{command.ToUpper()}'...", Colors.Green);
+					_hud?.LogRPG(
+	$"You used {command.ToUpper()}!",
+	"⚔️",
+	Colors.LightGreen
+);
+
 
 					// 2. [SCORING] Tambah Skor & Combo!
 					// Skor dasar 100 per serangan sukses (bisa diubah sesuai damage skill)
@@ -881,9 +897,13 @@ namespace MementoTest.Entities
 				// 2. [SCORING] Reset Combo karena Typo!
 				ScoreManager.Instance?.ResetCombo();
 
-				_hud?.LogToTerminal($"> SYNTAX ERROR: '{command}'", Colors.Red);
+				_hud?.LogRPG(
+	$"You failed to use '{command}'!",
+	"❌",
+	Colors.Red
+);
 
-				await EndCombatSession("SYSTEM HALTED.");
+				await EndCombatSession("");
 			}
 
 			_mapManager?.ClearAttackHighlights();
@@ -895,6 +915,7 @@ namespace MementoTest.Entities
 		{
 			if (_isAttacking) return;
 			_isAttacking = true;
+			AudioHooks.Trigger(AudioEventType.PlayerAttack);
 
 			Vector2 origin = GlobalPosition;
 
@@ -1098,9 +1119,7 @@ namespace MementoTest.Entities
 			// [MODIFIKASI] Cek apakah ini Turn pertama setelah Load Game?
 			if (_justLoaded)
 			{
-				// JIKA BARU LOAD: Jangan tambah AP, pakai nilai dari Save File
-				GD.Print("[PLAYER] Game Loaded. Skipping AP Regen.");
-				_hud?.LogToTerminal("--- GAME LOADED (AP RESTORED) ---", Colors.Yellow);
+
 
 				// Matikan flag agar turn berikutnya regen berjalan normal
 				_justLoaded = false;
@@ -1158,6 +1177,14 @@ namespace MementoTest.Entities
 				{
 					camera.Shake(6f, 0.15f);
 				}
+
+				_hud?.LogRPG(
+	$"You took {damage} damage!",
+	"💥",
+	Colors.OrangeRed
+);
+				AudioHooks.Trigger(AudioEventType.PlayerHurt);
+
 
 				return;
 			}
@@ -1300,6 +1327,7 @@ namespace MementoTest.Entities
 			_isDead = true;
 
 			_isInputLocked = true;
+			AudioHooks.Trigger(AudioEventType.PlayerDeath);
 
 			Sprite.Stop();
 			Sprite.Frame = 0;

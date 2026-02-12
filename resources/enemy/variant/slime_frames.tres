@@ -1,0 +1,32 @@
+[gd_resource type="SpriteFrames" format=3 uid="uid://qqose17fapjg"]
+
+[ext_resource type="Texture2D" uid="uid://b3e6uxbhjs8ek" path="res://assets/sprites/entities/enemy/Slime.png" id="1_ip1i8"]
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2ascj"]
+atlas = ExtResource("1_ip1i8")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_m2t0c"]
+atlas = ExtResource("1_ip1i8")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_12nk7"]
+atlas = ExtResource("1_ip1i8")
+region = Rect2(64, 0, 32, 32)
+
+[resource]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2ascj")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_m2t0c")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_12nk7")
+}],
+"loop": true,
+"name": &"idle",
+"speed": 5.0
+}]

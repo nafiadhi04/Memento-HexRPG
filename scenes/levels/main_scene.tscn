@@ -14,8 +14,9 @@
 [ext_resource type="PackedScene" uid="uid://cyavq5oxx5wtp" path="res://scenes/entities/projectileArcher.tscn" id="7_jtcbb"]
 [ext_resource type="Script" uid="uid://ddqwc7dhlg7n3" path="res://scripts/core/battle/TargetingProfile.cs" id="10_p61ap"]
 [ext_resource type="Script" uid="uid://b6mw2ys38apry" path="res://scripts/core/battle/SpeedBonusProfile.cs" id="11_df41j"]
-[ext_resource type="Resource" uid="uid://dns5bu7bkdprg" path="res://resources/commands/enemymovelist/ArrowShot.tres" id="14_o6frn"]
-[ext_resource type="Resource" uid="uid://xjnk6k2vowsq" path="res://resources/enemyai/Kiting.tres" id="15_3jqmn"]
+[ext_resource type="Resource" uid="uid://b3mkjpu02oqfy" path="res://resources/commands/enemymovelist/Blunt.tres" id="13_3jqmn"]
+[ext_resource type="Resource" uid="uid://dr28kq5lgi0ti" path="res://resources/enemy/ai/Aggressive.tres" id="13_o6frn"]
+[ext_resource type="Resource" uid="uid://d0i2kikulsp72" path="res://resources/enemy/variant/Slime.tres" id="16_pkib5"]
 [ext_resource type="PackedScene" uid="uid://dxvef7x3tcy2a" path="res://scenes/ui/pause_menu.tscn" id="18_o6frn"]
 [ext_resource type="PackedScene" uid="uid://d4eugu73klghm" path="res://scenes/ui/win_screen.tscn" id="19_pkib5"]
 
@@ -94,11 +95,11 @@ script = ExtResource("6_8hc5g")
 
 [node name="Enemy" parent="EnemyGroups/Area1" unique_id=584458365 instance=ExtResource("3_3ulyp")]
 position = Vector2(-37.99997, 47.000004)
-MaxHP = 100
-SkillList = Array[Object]([ExtResource("14_o6frn")])
-AiProfile = ExtResource("15_3jqmn")
+SkillList = Array[Object]([ExtResource("13_3jqmn")])
+AiProfile = ExtResource("13_o6frn")
 TargetingProfile = SubResource("Resource_df41j")
 SpeedBonusProfile = SubResource("Resource_84bhp")
+Data = ExtResource("16_pkib5")
 
 [node name="PauseMenu" parent="." unique_id=877414348 instance=ExtResource("18_o6frn")]
 
