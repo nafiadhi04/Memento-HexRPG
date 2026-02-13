@@ -21,7 +21,7 @@ animations = [{
 "texture": SubResource("AtlasTexture_mp77m")
 }],
 "loop": true,
-"name": &"Idle",
+"name": &"idle",
 "speed": 5.0
 }]
 

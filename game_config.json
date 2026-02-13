@@ -39,31 +39,16 @@
 		
 	}
 },
-	"skills": {
-		"SLASH": {
-			"damage": 25,
-			"ap_cost": 3,
-			"description": "Powerful melee strike"
-		},
-		"SHOOT": {
-			"damage": 15,
-			"ap_cost": 2,
-			"description": "Ranged arrow shot"
-		},
-		"FIREBALL": {
-			"damage": 40,
-			"ap_cost": 5,
-			"description": "High damage magic attack"
-		},
-		"BLOCK": {
-			"damage": 0,
-			"ap_cost": 1,
-			"description": "Reduces incoming damage"
-		}
-	},
+
 	"gameplay": {
 		"typo_penalty_ap": 2,
 		"success_regen_ap": 3,
 		"turn_start_regen": 2
+	},
+	
+		"heal_settings": {
+			"hp_potion_amount": 10,
+			"ap_potion_amount": 5
+		}
 	}
-}
+	

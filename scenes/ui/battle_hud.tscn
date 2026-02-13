@@ -1,7 +1,9 @@
 [gd_scene format=3 uid="uid://8ta2vd0iv23n"]
 
 [ext_resource type="Script" uid="uid://dfdn7hnohdxr6" path="res://scripts/ui/BattleHUD.cs" id="1_dy3po"]
+[ext_resource type="PackedScene" uid="uid://e1ul4to7wfyu" path="res://scenes/ui/guide_pop_up.tscn" id="2_6uyy6"]
 [ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="2_ytn0o"]
+[ext_resource type="Texture2D" uid="uid://b41i1gkoa70e" path="res://assets/sprites/textures/potions.png" id="3_p6blr"]
 
 [sub_resource type="LabelSettings" id="LabelSettings_dy3po"]
 font_size = 24
@@ -36,23 +38,35 @@ corner_radius_top_right = 5
 corner_radius_bottom_right = 5
 corner_radius_bottom_left = 5
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_6uyy6"]
+atlas = ExtResource("3_p6blr")
+region = Rect2(48, 0, 16, 16)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_nj5vo"]
+atlas = ExtResource("3_p6blr")
+region = Rect2(192, 0, 16, 16)
+
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_dy3po"]
 bg_color = Color(1.0102807, 1.0102807, 0, 1)
 
-[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("CommandInput", "CommandFeedback", "TurnLabel", "CombatLogLabel", "LogScroll", "PlayerHPBar", "PlayerAPBar", "ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar") groups=["HUD"]]
+[node name="BattleHUD" type="CanvasLayer" unique_id=682286073 node_paths=PackedStringArray("CommandInput", "CommandFeedback", "TurnLabel", "CombatLogLabel", "LogScroll", "GuideButton", "PlayerHPBar", "PlayerAPBar", "ScoreLabel", "ComboLabel", "ReactionPanel", "ReactionPromptLabel", "ReactionTimerBar", "HpPotionLabel", "ApPotionLabel") groups=["HUD"]]
 script = ExtResource("1_dy3po")
 CommandInput = NodePath("MainControl/CommandInput")
 CommandFeedback = NodePath("MainControl/CenterUI/CommandFeedback")
 TurnLabel = NodePath("MainControl/TurnLabel")
 CombatLogLabel = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScroll/CombatLogLabel")
 LogScroll = NodePath("MainControl/LogAnchor/LogBackground/LogMargin/LogScroll")
+GuidePopupScene = ExtResource("2_6uyy6")
+GuideButton = NodePath("MainControl/GuideButton")
 PlayerHPBar = NodePath("MainControl/StatsUI/VBoxContainer/HPContainer/HPBar")
 PlayerAPBar = NodePath("MainControl/StatsUI/VBoxContainer/APContainer/APBar")
-ScoreLabel = NodePath("MainControl/StatsUI/VBoxContainer/ScoreLabel")
-ComboLabel = NodePath("MainControl/StatsUI/VBoxContainer/ComboLabel")
+ScoreLabel = NodePath("MainControl/ScoreLabel")
+ComboLabel = NodePath("MainControl/ComboLabel")
 ReactionPanel = NodePath("MainControl/ReactionPanel")
 ReactionPromptLabel = NodePath("MainControl/ReactionPanel/VboxContainer/ReactionPromptLabel")
 ReactionTimerBar = NodePath("MainControl/ReactionPanel/VboxContainer/ReactionTimerBar")
+HpPotionLabel = NodePath("MainControl/StatsUI/VBoxContainer/HBoxContainer/HPPotion")
+ApPotionLabel = NodePath("MainControl/StatsUI/VBoxContainer/HBoxContainer/APPotion")
 
 [node name="MainControl" type="Control" parent="." unique_id=1465589118]
 layout_mode = 3
@@ -115,6 +129,7 @@ tab_size = 15
 layout_mode = 1
 offset_right = 175.0
 offset_bottom = 127.0
+theme = ExtResource("2_ytn0o")
 theme_override_constants/margin_left = 20
 theme_override_constants/margin_top = 20
 
@@ -152,11 +167,25 @@ show_percentage = false
 [node name="APLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer/APContainer" unique_id=246387147]
 layout_mode = 2
 
-[node name="ScoreLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer" unique_id=1072409048]
+[node name="HBoxContainer" type="HBoxContainer" parent="MainControl/StatsUI/VBoxContainer" unique_id=973473901]
 layout_mode = 2
 
-[node name="ComboLabel" type="Label" parent="MainControl/StatsUI/VBoxContainer" unique_id=744383370]
+[node name="HPPotionIcon" type="TextureRect" parent="MainControl/StatsUI/VBoxContainer/HBoxContainer" unique_id=1598137463]
 layout_mode = 2
+texture = SubResource("AtlasTexture_6uyy6")
+stretch_mode = 5
+
+[node name="HPPotion" type="Label" parent="MainControl/StatsUI/VBoxContainer/HBoxContainer" unique_id=803608893]
+layout_mode = 2
+
+[node name="APPotionIcon" type="TextureRect" parent="MainControl/StatsUI/VBoxContainer/HBoxContainer" unique_id=958047064]
+layout_mode = 2
+texture = SubResource("AtlasTexture_nj5vo")
+stretch_mode = 5
+
+[node name="APPotion" type="Label" parent="MainControl/StatsUI/VBoxContainer/HBoxContainer" unique_id=73853263]
+layout_mode = 2
+size_flags_horizontal = 0
 
 [node name="ReactionPanel" type="PanelContainer" parent="MainControl" unique_id=1441546504]
 layout_mode = 1
@@ -221,3 +250,32 @@ grow_vertical = 2
 theme = ExtResource("2_ytn0o")
 alignment = 1
 flat = true
+
+[node name="ScoreLabel" type="Label" parent="MainControl" unique_id=1072409048]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -155.0
+offset_top = 23.0
+offset_bottom = 46.0
+grow_horizontal = 0
+theme = ExtResource("2_ytn0o")
+
+[node name="ComboLabel" type="Label" parent="MainControl" unique_id=744383370]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -155.0
+offset_bottom = 23.0
+grow_horizontal = 0
+theme = ExtResource("2_ytn0o")
+
+[node name="GuideButton" type="Button" parent="MainControl" unique_id=856611686]
+layout_mode = 0
+offset_top = 256.0
+offset_right = 14.0
+offset_bottom = 277.0
+theme = ExtResource("2_ytn0o")
+text = "?"

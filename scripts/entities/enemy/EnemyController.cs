@@ -17,6 +17,8 @@ namespace MementoTest.Entities
 		 * EXPORT / CONFIG
 		 * ======================= */
 		[ExportGroup("Stats")]
+		[Export] public string EnemyID;
+
 		public int MaxHP => Data != null ? Data.MaxHP : 50;
 		public string EnemyName => Data != null ? Data.EnemyName : "Enemy";
 
@@ -46,6 +48,10 @@ namespace MementoTest.Entities
 		 * ======================= */
 		private int _currentHP;
 		private bool _isBusy;
+		public int CurrentHP => _currentHP;
+		private bool _isDead = false;
+		public bool IsDead => _isDead;
+
 
 		public Vector2I CurrentGridPos => _currentGridPos;
 
@@ -81,6 +87,8 @@ namespace MementoTest.Entities
 		{
 			Modulate = Colors.White;
 			Visible = true;
+			AddToGroup("Enemy");
+
 			if (Data != null)
 			{
 				_currentHP = Data.MaxHP;
@@ -103,6 +111,22 @@ namespace MementoTest.Entities
 				}
 			}
 
+			if (GameManager.Instance?.CurrentSaveData != null)
+			{
+				var savedEnemy = GameManager.Instance.CurrentSaveData.Enemies
+					.FirstOrDefault(e => e.EnemyID == Name);
+
+				if (savedEnemy != null)
+				{
+					GlobalPosition = savedEnemy.Position;
+					_currentHP = savedEnemy.HP;
+
+					if (savedEnemy.IsDead)
+						QueueFree();
+				}
+			}
+
+
 			_healthBar = GetNodeOrNull<ProgressBar>("HealthBar");
 			if (_healthBar != null)
 			{
@@ -124,6 +148,8 @@ namespace MementoTest.Entities
 
 			_targetPlayer = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
 			_hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
+			
+
 			LoadEnemyState();
 			AddToGroup("Enemy");
 		}
@@ -215,31 +241,48 @@ namespace MementoTest.Entities
 		/* =======================
 		 * TURN ENTRY POINT
 		 * ======================= */
-		public async Task ExecuteTurn()
+	public async Task ExecuteTurn()
 		{
-			// Cek kesiapan HUD dan Data
-			while (_hud != null && _hud.IsBusy) await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
-			if (_targetPlayer == null || AiProfile == null) return;
+			if (_isDead) return;
 			if (_isExecutingTurn) return;
+			if (_targetPlayer == null) return;
+			int gridDist = GetGridDistanceToPlayer();
+
+			GD.Print($"[AI DEBUG] {Name}");
+			GD.Print($"   Dist           : {gridDist}");
+			GD.Print($"   Preferred      : {AiProfile.PreferredDistance}");
+			GD.Print($"   SightRange     : {AiProfile.SightRange}");
+			GD.Print($"   Behavior       : {AiProfile.Behavior}");
 
 			_isExecutingTurn = true;
 
-			// 1. Hitung Jarak Grid
-			int dist = GetGridDistanceToPlayer();
+			
+			GD.Print($"[AI] ExecuteTurn called for {Name}");
 
-			// 2. LOGIKA SIGHT (PENGLIHATAN)
-			if (dist > AiProfile.SightRange)
+
+			GD.Print($"[AI] {Name} | Dist: {gridDist} | Sight: {AiProfile.SightRange}");
+
+			// 🔹 Player di luar sight → random walk
+			if (gridDist > AiProfile.SightRange)
 			{
-				// Player diluar jangkauan -> Jalan-jalan Random
-				// GD.Print($"[AI] Player too far ({dist} > {AiProfile.SightRange}). Wandering...");
-				await HandleIdle();
+				GD.Print("[AI] Wandering...");
+				await RandomMove();
 			}
 			else
 			{
-				// Player terlihat -> Aktifkan Mode Tempur (Aggressive/Kiting)
-				// GD.Print($"[AI] Player spotted! Distance: {dist}");
-				await HandleCombat(dist);
+				// 🔹 Dalam sight → pakai behavior
+				switch (AiProfile.Behavior)
+				{
+					case EnemyAIProfile.BehaviorType.Aggressive:
+						await HandleAggressive(gridDist);
+						break;
+
+					case EnemyAIProfile.BehaviorType.Kiting:
+						await HandleKiting(gridDist);
+						break;
+				}
 			}
+			await MoveTowardsPlayer();
 
 			_isExecutingTurn = false;
 		}
@@ -265,19 +308,14 @@ namespace MementoTest.Entities
 		// --- MODE SANTAI (JALAN RANDOM) ---
 		private async Task HandleIdle()
 		{
-			// Cari tetangga acak yang bisa diinjak
 			Vector2I? randomTarget = GetRandomValidNeighbor();
 
 			if (randomTarget.HasValue)
-			{
 				await MoveToGrid(randomTarget.Value);
-			}
 			else
-			{
-				// Tidak ada jalan / terpojok -> Diam saja
-				await Wait(0.2f);
-			}
+				await Wait(0.3f);
 		}
+
 
 		// Helper: Cari 1 kotak tetangga acak yang kosong
 		private Vector2I? GetRandomValidNeighbor()
@@ -314,26 +352,15 @@ namespace MementoTest.Entities
 
 		private async Task HandleAggressive(int gridDist)
 		{
-			GD.Print($"[AI] Aggressive | GridDist = {gridDist}");
-
-			// 1. Kejar player
 			if (gridDist > AiProfile.PreferredDistance)
 			{
-				GD.Print("[AI] Aggressive: chasing player");
 				await MoveTowardsPlayer();
 				return;
 			}
 
-			// 2. Pastikan HUD siap
-			while (_hud != null && _hud.IsBusy)
-			{
-				await ToSignal(GetTree().CreateTimer(0.05f), "timeout");
-			}
-
-			// 3. Serang
-			GD.Print("[AI] Aggressive: in range, attacking");
 			await TryAttack(gridDist);
 		}
+
 
 
 		private async Task HandleKiting(int gridDist)
@@ -634,20 +661,28 @@ namespace MementoTest.Entities
 
 		private async Task MoveTowardsPlayer()
 		{
-			if (_mapManager == null) return;
+			GD.Print($"[AI] {Name} trying to move...");
 
-			// Pathfinding Sederhana (Greedy): Cari tetangga yang paling dekat ke player
+			if (_mapManager == null)
+			{
+				GD.Print("[AI] MapManager NULL");
+				return;
+			}
+
 			Vector2I bestTile = _currentGridPos;
 			int bestDist = int.MaxValue;
 			Vector2I playerGrid = _mapManager.GetGridCoordinates(_targetPlayer.GlobalPosition);
 
-			// Cek semua tetangga
 			foreach (Vector2I neighbor in _mapManager.GetNeighbors(_currentGridPos))
 			{
-				// Validasi: Bisa jalan & Kosong
-				if (_mapManager.IsTileWalkable(neighbor) && !_mapManager.IsTileOccupied(neighbor))
+				GD.Print($"[AI] Checking neighbor {neighbor}");
+
+				if (_mapManager.IsTileWalkable(neighbor) &&
+					!_mapManager.IsTileOccupied(neighbor))
 				{
 					int d = _mapManager.GetGridDistance(neighbor, playerGrid);
+					GD.Print($"[AI] Valid tile {neighbor} | dist {d}");
+
 					if (d < bestDist)
 					{
 						bestDist = d;
@@ -656,23 +691,24 @@ namespace MementoTest.Entities
 				}
 			}
 
-			// Jika ada tile yang lebih dekat, pindah
+			GD.Print($"[AI] Best tile chosen: {bestTile}");
+
 			if (bestTile != _currentGridPos)
 			{
-				// Update Grid
 				_currentGridPos = bestTile;
 
-				// Animasi Gerak (Tween)
 				Tween t = CreateTween();
-				t.TweenProperty(this, "global_position", _mapManager.GridToWorld(bestTile), MoveDuration);
+				t.TweenProperty(this, "global_position",
+					_mapManager.GridToWorld(bestTile), MoveDuration);
+
 				await ToSignal(t, "finished");
 			}
 			else
 			{
-				// Terjebak / Tidak ada jalan
-				_hud.LogToTerminal("Enemy waits...", Colors.Gray);
+				GD.Print("[AI] No better tile found.");
 			}
 		}
+
 
 		// Helper Jarak Grid (Sama persis logic Player)
 		private int GetGridDistanceToPlayer()
@@ -769,6 +805,13 @@ namespace MementoTest.Entities
 
 			if (_currentHP <= 0)
 				Die();
+			var turnManager = GetTree().GetFirstNodeInGroup("TurnManager") as TurnManager;
+
+			if (turnManager != null &&
+				turnManager.CurrentTurn == TurnManager.TurnState.Enemy)
+			{
+				turnManager.ForceReturnToPlayerTurn();
+			}
 		}
 		private void ShowDamagePopup(int amount, string label = "")
 		{
@@ -801,9 +844,56 @@ namespace MementoTest.Entities
 				GD.PrintErr("Script DamagePopup belum punya fungsi Setup!");
 			}
 		}
+		private void DropPotion()
+		{
+			var player = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
+			if (player == null) return;
+
+			RandomNumberGenerator rng = new RandomNumberGenerator();
+			rng.Randomize();
+
+			int roll = rng.RandiRange(0, 99);
+
+			if (roll < 40)
+			{
+				player.AddHpPotion(1);
+			}
+			else if (roll < 80)
+			{
+				player.AddApPotion(1);
+			}
+			// else → no drop
+		}
+		private async Task RandomMove()
+		{
+			var neighbors = GetValidNeighbors();
+
+			if (neighbors.Count == 0)
+			{
+				GD.Print("[AI] No valid neighbors.");
+				await Wait();
+				return;
+			}
+
+			int index = _rng.Next(neighbors.Count);
+			Vector2I target = neighbors[index];
+
+			await MoveToGrid(target);
+		}
+
+
+
 
 		private async void Die()
 		{
+			if (_isDead) return;
+			_isDead = true;
+			RemoveFromGroup("Enemy");
+			var turnManager = GetTree().GetFirstNodeInGroup("TurnManager") as TurnManager;
+			if (turnManager != null && turnManager.CurrentTurn == TurnManager.TurnState.Enemy)
+			{
+				turnManager.ForceReturnToPlayerTurn();
+			}
 			_hud?.LogRPG(
 	$"{this.Name} has fallen...",
 	"☠️",
@@ -821,6 +911,8 @@ namespace MementoTest.Entities
 			{
 				player.RegisterKill();
 			}
+			DropPotion();
+
 			QueueFree();
 			if (MementoTest.Core.GameManager.Instance != null)
 			{

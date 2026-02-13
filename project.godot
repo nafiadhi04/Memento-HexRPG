@@ -59,6 +59,8 @@ toggle_log={
 2d_render/layer_4="Projectile"
 2d_physics/layer_2="Enemy"
 2d_physics/layer_4="Projectile"
+2d_physics/layer_6="Player"
+2d_physics/layer_8="LockedArea"
 
 [physics]
 

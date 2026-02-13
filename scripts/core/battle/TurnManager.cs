@@ -18,6 +18,8 @@ namespace MementoTest.Core
 
 		// Referensi ke Player untuk cek jarak (Opsional tapi disarankan)
 		private PlayerController _player;
+		private bool _enemyPhaseRunning = false;
+
 
 		public override void _Ready()
 		{
@@ -72,66 +74,74 @@ namespace MementoTest.Core
 			StartEnemyTurn();
 		}
 
-		// --- BAGIAN YANG DIPERBAIKI ---
+
 		public async void StartEnemyTurn()
 		{
+			if (_enemyPhaseRunning) return;
+			_enemyPhaseRunning = true;
+
 			if (_player != null && _player.IsDead)
+			{
+				_enemyPhaseRunning = false;
 				return;
+			}
+
 			CurrentTurn = TurnState.Enemy;
-			GD.Print("--- ENEMY PHASE START ---");
+
 			if (_battleHUD != null)
 			{
 				_battleHUD.UpdateTurnLabel("ENEMY TURN");
 				_battleHUD.SetTurnLabelVisible(true);
+				_battleHUD.EnablePlayerInput(false); // ⛔ disable input saat enemy turn
 			}
 
-
-			// 1. [FIX] Cari musuh menggunakan GROUP, bukan Children.
-			// Ini akan menemukan musuh meskipun mereka ada di dalam folder Area1, Area2, dll.
 			var enemyNodes = GetTree().GetNodesInGroup("Enemy");
 
 			bool anyEnemyActed = false;
 
-			// 2. Eksekusi satu per satu
 			foreach (var node in enemyNodes)
 			{
-				// Validasi: Pastikan node adalah EnemyController dan masih hidup
-				if (node is EnemyController enemy && IsInstanceValid(enemy) && !enemy.IsQueuedForDeletion())
+				if (node is EnemyController enemy)
 				{
-					// [LOGIKA JARAK] 
-					// Cek jarak ke player. Jika terlalu jauh (> 800 pixel), skip giliran ini.
-					// Ini mencegah Boss di Area 5 menyerang saat kamu masih di Area 1.
-					if (_player != null)
-					{
-						float dist = enemy.GlobalPosition.DistanceTo(_player.GlobalPosition);
-						if (dist > 800) // Angka 800 bisa disesuaikan dengan ukuran layar/area
-						{
-							continue; // Skip musuh ini, lanjut ke musuh berikutnya
-						}
-					}
+					if (!IsInstanceValid(enemy))
+						continue;
+
+					if (enemy.IsDead)
+						continue;
+
+					float dist = enemy.GlobalPosition.DistanceTo(_player.GlobalPosition);
+					if (dist > 800)
+						continue;
 
 					anyEnemyActed = true;
 
-					// Jalankan turn musuh
-					// Pastikan di EnemyController fungsi ExecuteTurn mereturn Task
 					await enemy.ExecuteTurn();
 
-					// Jeda sedikit antar musuh
 					await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
 				}
 			}
 
 			if (!anyEnemyActed)
-			{
-				GD.Print("Tidak ada musuh aktif di sekitar.");
-				// Jeda sebentar biar tidak terlalu cepat pindah phase
 				await ToSignal(GetTree().CreateTimer(0.5f), "timeout");
-			}
 
-			_battleHUD.ExitPlayerCommandPhase();
+			_battleHUD?.ExitPlayerCommandPhase();
 
-			// 3. Kembalikan giliran ke Player
-			StartPlayerTurn();
+			_enemyPhaseRunning = false;
+
+			StartPlayerTurn(); // ✅ single source of truth
 		}
+		public void ForceReturnToPlayerTurn()
+		{
+			_enemyPhaseRunning = false;
+			CurrentTurn = TurnState.Player;
+
+			_battleHUD?.UpdateTurnLabel("PLAYER TURN");
+			_battleHUD?.SetTurnLabelVisible(true);
+			_battleHUD?.EnablePlayerInput(true);
+
+			GD.Print("Force return to PLAYER TURN");
+		}
+
+
 	}
 }

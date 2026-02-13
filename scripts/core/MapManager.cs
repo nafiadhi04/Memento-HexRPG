@@ -165,16 +165,19 @@ namespace MementoTest.Core
 		}
 
 		// Versi Paling Stabil untuk MapManager.cs
-		public int GetGridDistance(Vector2I gridA, Vector2I gridB)
+		public int GetGridDistance(Vector2I a, Vector2I b)
 		{
-			if (gridA == gridB) return 0;
-			Vector2 posA = GridToWorld(gridA);
-			Vector2 posB = GridToWorld(gridB);
+			int dx = a.X - b.X;
+			int dy = a.Y - b.Y;
+			int dz = -dx - dy;
 
-			// Membagi jarak pixel dengan konstanta ukuran hex
-			// Angka 21.0f didapat dari (14.0 * 1.5). Sesuaikan jika gridmu lebih besar.
-			return Mathf.RoundToInt(posA.DistanceTo(posB) / 21.0f);
+			return Mathf.Max(
+				Mathf.Abs(dx),
+				Mathf.Max(Mathf.Abs(dy), Mathf.Abs(dz))
+			);
 		}
+
+
 		private void CreateHighlightCursor()
 		{
 			// Membuat node Line2D secara coding (tanpa perlu add node di Scene)
@@ -336,15 +339,19 @@ namespace MementoTest.Core
 
 			foreach (Node2D entity in enemies)
 			{
-				// Cek jarak aman karena posisi float tidak selalu persis sama
-				if (GetGridCoordinates(entity.GlobalPosition) == targetGridCoords) return true;
+				if (GetGridCoordinates(entity.GlobalPosition) == targetGridCoords)
+					return true;
 			}
+
 			foreach (Node2D entity in players)
 			{
-				if (GetGridCoordinates(entity.GlobalPosition) == targetGridCoords) return true;
+				if (GetGridCoordinates(entity.GlobalPosition) == targetGridCoords)
+					return true;
 			}
+
 			return false;
 		}
+
 
 		public bool IsNeighbor(Vector2I currentCoords, Vector2I targetCoords)
 		{

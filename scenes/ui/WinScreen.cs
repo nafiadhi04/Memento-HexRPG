@@ -11,14 +11,14 @@ namespace MementoTest.UI
         // --- BAGIAN INI AGAR BISA DRAG & DROP ---
         [Export] private Label _scoreLabel;
         [Export] private Label _highScoreLabel;     // Drag node HighScoreLabel kesini nanti
-        [Export] private Button _mainMenuButton;    // Drag node MainMenuButton kesini nanti
+          // Drag node MainMenuButton kesini nanti
         // ----------------------------------------
 
         public override void _Ready()
         {
             Visible = false;
             // Cek apakah node sudah dimasukkan lewat Inspector
-            if (_scoreLabel == null || _highScoreLabel == null || _mainMenuButton == null)
+            if (_scoreLabel == null || _highScoreLabel == null)
             {
                 GD.PrintErr("ERROR: Node UI belum di-assign di Inspector WinScreen! Silakan Drag & Drop node-nya.");
                 return;
@@ -26,7 +26,7 @@ namespace MementoTest.UI
 
             ProcessVictoryData();
 
-            _mainMenuButton.Pressed += () => SceneTransition.Instance.ChangeScene(MainMenuScenePath);
+            
         }
 
         public void ShowVictory()

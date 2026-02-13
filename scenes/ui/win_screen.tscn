@@ -3,7 +3,6 @@
 [ext_resource type="Script" uid="uid://cl0ylgyljq3sv" path="res://scenes/ui/WinScreen.cs" id="1_1cgod"]
 
 [node name="WinScreen" type="Control" unique_id=1526129898 node_paths=PackedStringArray("_scoreLabel", "_highScoreLabel", "_mainMenuButton")]
-visible = false
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -13,7 +12,7 @@ grow_vertical = 2
 script = ExtResource("1_1cgod")
 _scoreLabel = NodePath("VictoryPanel/ScoreLabel")
 _highScoreLabel = NodePath("VictoryPanel/HighScoreLabel")
-_mainMenuButton = NodePath("VictoryPanel/MainMenuButton")
+_mainMenuButton = NodePath("")
 
 [node name="VictoryPanel" type="Panel" parent="." unique_id=1331411108]
 custom_minimum_size = Vector2(250, 100)
@@ -63,10 +62,3 @@ horizontal_alignment = 1
 layout_mode = 0
 offset_right = 40.0
 offset_bottom = 23.0
-
-[node name="MainMenuButton" type="Button" parent="VictoryPanel" unique_id=1410670325]
-layout_mode = 0
-offset_left = -195.0
-offset_top = -130.0
-offset_right = -187.0
-offset_bottom = -122.0

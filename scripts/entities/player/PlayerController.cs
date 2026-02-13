@@ -29,6 +29,18 @@ namespace MementoTest.Entities
 		[Export]
 		private PackedScene _projectileScene;
 		private bool _justLoaded = false;
+		private int _hpPotionCount = 0;
+		private int _apPotionCount = 0;
+
+		public int HpPotionCount => _hpPotionCount;
+		public int ApPotionCount => _apPotionCount;
+
+		[ExportGroup("Potion UI")]
+		[Export] public Label HpPotionLabel;
+		[Export] public Label ApPotionLabel;
+
+
+		public Vector2I CurrentGridPos => _currentGridPos;
 
 
 
@@ -186,6 +198,10 @@ namespace MementoTest.Entities
 			{
 				classToLoad = GameManager.Instance.CurrentSaveData.ClassType;
 				GD.Print($"[PLAYER] Loading Save Data Found: {classToLoad}");
+				_hud.UpdatePotionUI(
+		GameManager.Instance.CurrentSaveData.HPPotionCount,
+		GameManager.Instance.CurrentSaveData.APPotionCount
+	);
 			}
 			else if (UseDebugClass)
 			{
@@ -494,6 +510,8 @@ namespace MementoTest.Entities
 
 		private bool TryHandleEnemyClick(Vector2 mousePos)
 		{
+			if (_turnManager.CurrentTurn != TurnManager.TurnState.Player)
+				return false;
 			// 1. SETUP RAYCAST (Cara paling akurat mendeteksi klik pada objek fisik)
 			var spaceState = GetWorld2D().DirectSpaceState;
 			var query = new PhysicsPointQueryParameters2D
@@ -543,8 +561,7 @@ namespace MementoTest.Entities
 						_isTargetLocked = true;
 
 						var hud = GetTree().GetFirstNodeInGroup("HUD") as BattleHUD;
-						hud?.SetTurnLabelVisible(true);
-
+					
 						// Update Arah Pandang Player
 						Vector2 direction = (enemy.GlobalPosition - GlobalPosition).Normalized();
 						UpdateLookDirection(direction);
@@ -722,7 +739,7 @@ namespace MementoTest.Entities
 
 
 				await MoveToGrid(targetGrid);
-				await TriggerEnemyTurn();
+			
 			}
 			else
 			{
@@ -806,11 +823,14 @@ namespace MementoTest.Entities
 		// --- COMBAT LOGIC ---
 		private async void ExecuteCombatCommand(string command)
 		{
-			if (_isDead)
+			if (_turnManager.CurrentTurn != TurnManager.TurnState.Player)
 			{
-				GD.Print("BLOCKED BECAUSE DEAD");
+				GD.Print("Blocked: Not Player Turn");
 				return;
 			}
+
+			if (_isDead) return;
+
 			_mapManager?.ClearMovementOptions();
 			// Validasi Target
 			if (_targetEnemy == null || !GodotObject.IsInstanceValid(_targetEnemy))
@@ -823,6 +843,51 @@ namespace MementoTest.Entities
 			if (_turnManager.CurrentTurn != TurnManager.TurnState.Player) return;
 
 			command = command.ToLower().Trim();
+
+			// ==============================
+			// 1 HEAL COMMAND (PRIORITAS)
+			// ==============================
+			if (command == "healhp")
+			{
+				if (_hpPotionCount > 0)
+				{
+					_hpPotionCount--;
+
+					int healAmount = ConfigManager.Instance?.GetHpPotionHeal() ?? 10;
+					UseHpPotion(healAmount);
+
+					_hud?.UpdatePotionUI(_hpPotionCount, _apPotionCount);
+					_hud?.LogRPG($"You used HP Potion (+{healAmount})!", "🧪", Colors.LightGreen);
+				}
+				else
+				{
+					_hud?.LogToTerminal("NO HP POTION!", Colors.Red);
+				}
+
+				return;
+			}
+
+			if (command == "healap")
+			{
+				if (_apPotionCount > 0)
+				{
+					_apPotionCount--;
+
+					int healAmount = ConfigManager.Instance?.GetApPotionHeal() ?? 5;
+					UseApPotion(healAmount);
+
+					_hud?.UpdatePotionUI(_hpPotionCount, _apPotionCount);
+					_hud?.LogRPG($"You used AP Potion (+{healAmount})!", "🔷", Colors.Cyan);
+				}
+				else
+				{
+					_hud?.LogToTerminal("NO AP POTION!", Colors.Red);
+				}
+
+				return;
+			}
+
+
 
 			// SKENARIO SUKSES (Skill Ditemukan)
 			if (_skillDatabase.ContainsKey(command))
@@ -884,6 +949,8 @@ namespace MementoTest.Entities
 					_hud?.LogToTerminal($"ERROR: NEED {skill.ApCost} AP.", Colors.Red);
 					// (Opsional) Tidak reset combo kalau cuma kurang AP, tapi terserah desain game-mu
 				}
+
+
 			}
 			// SKENARIO TYPO / GAGAL (Skill Tidak Ditemukan)
 			else
@@ -910,6 +977,42 @@ namespace MementoTest.Entities
 
 			_mapManager?.ShowNeighborHighlight(_currentGridPos);
 		}
+		public void UpdatePotionUI(int hpCount, int apCount)
+		{
+			if (HpPotionLabel != null)
+				HpPotionLabel.Text = $"x{hpCount}";
+
+			if (ApPotionLabel != null)
+				ApPotionLabel.Text = $"x{apCount}";
+		}
+
+		private void UseHpPotion()
+        {
+            throw new NotImplementedException();
+        }
+
+        private void UseHpPotion(int amount)
+		{
+			if (_isDead) return;
+
+			_currentHP = Math.Min(_currentHP + amount, MaxHP);
+			_hud?.UpdateHP(_currentHP, MaxHP);
+			_hud?.LogToTerminal($"+{amount} HP restored!", Colors.Green);
+
+			ShowDamagePopup(-amount, "HEAL");
+
+			CheckDeathCondition(); // safety
+		}
+
+		private void UseApPotion(int amount)
+		{
+			if (_isDead) return;
+
+			_currentAP = Math.Min(_currentAP + amount, MaxAP);
+			_hud?.UpdateAP(_currentAP, MaxAP);
+			_hud?.LogToTerminal($"+{amount} AP restored!", Colors.Cyan);
+		}
+
 
 		private async Task PerformAttackAnimation(int damage, AttackType attackType)
 		{
@@ -1217,8 +1320,8 @@ namespace MementoTest.Entities
 		private async void PlayHurtAnimation()
 		{
 			if (_isHurt || _isAttacking) return;
-			
-	
+
+
 
 			_isHurt = true;
 
@@ -1243,6 +1346,20 @@ namespace MementoTest.Entities
 			if (Sprite.SpriteFrames.HasAnimation(idleAnim))
 				Sprite.Play(idleAnim);
 		}
+		public void AddHpPotion(int amount)
+		{
+			_hpPotionCount += amount;
+			_hud?.UpdatePotionUI(_hpPotionCount, _apPotionCount);
+			_hud?.LogToTerminal(">> HP POTION ACQUIRED!", Colors.LightGreen);
+		}
+
+		public void AddApPotion(int amount)
+		{
+			_apPotionCount += amount;
+			_hud?.UpdatePotionUI(_hpPotionCount, _apPotionCount);
+			_hud?.LogToTerminal(">> AP POTION ACQUIRED!", Colors.LightBlue);
+		}
+
 
 		private async Task ShowYouLoseText(string reason)
 		{

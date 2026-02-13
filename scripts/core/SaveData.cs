@@ -1,6 +1,7 @@
 using Godot;
 using System;
 using MementoTest.Core;
+using System.Collections.Generic;
 
 namespace MementoTest.Core
 {
@@ -12,6 +13,8 @@ namespace MementoTest.Core
 
 		// --- BAGIAN 1: JEMBATAN TIPE KELAS (Supaya tidak error ClassType) ---
 		[Export] public int ClassTypeInt { get; set; } = 0;
+		public List<EnemySaveData> Enemies = new List<EnemySaveData>();
+
 
 		public PlayerClassType ClassType
 		{
@@ -34,7 +37,20 @@ namespace MementoTest.Core
 		[Export] public int HighScore { get; set; } = 0;
 		[Export] public int TotalKills { get; set; } = 0;
 		[Export] public Godot.Collections.Array<string> UnlockedSkills { get; set; } = new();
+		[Export] public int HPPotionCount = 0;
+		[Export] public int APPotionCount = 0;
+		[Serializable]
+		public class EnemySaveData
+		{
+			public string EnemyID;
+			public Vector2 Position;
+			public int HP;
+			public bool IsDead;
+		}
 
-		public SaveData() { }
+		public SaveData()
+		{
+			
+		}
 	}
 }

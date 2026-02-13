@@ -4,6 +4,7 @@
 
 [resource]
 script = ExtResource("1_5q2af")
+PreferredDistance = 2
 RetreatDistance = 0
 ChaseDistance = 8
 metadata/_custom_type_script = "uid://c556nbxe4u3h7"

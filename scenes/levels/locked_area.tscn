@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://c6y1knerprb60" path="res://scripts/core/LockedArea.cs" id="1_12heu"]
 [ext_resource type="Texture2D" uid="uid://c1ov7mp1og3l8" path="res://resources/particles/FogTexture.tres" id="1_cbxdd"]
-[ext_resource type="Texture2D" uid="uid://dx0d13km0gwbb" path="res://icon.svg" id="2_12heu"]
+[ext_resource type="Texture2D" uid="uid://d2vqm1rwtv18j" path="res://assets/sprites/environtments/Small Square Padlock - GOLD - 0000.png" id="3_12heu"]
 
 [sub_resource type="CanvasItemMaterial" id="CanvasItemMaterial_ya60f"]
 light_mode = 1
@@ -29,6 +29,8 @@ gravity = Vector3(0, 0, 0)
 scale_min = 0.5
 color_ramp = SubResource("GradientTexture1D_cbxdd")
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_12heu"]
+
 [node name="LockedArea" type="Node2D" unique_id=42898743]
 script = ExtResource("1_12heu")
 
@@ -44,5 +46,13 @@ process_material = SubResource("ParticleProcessMaterial_cbxdd")
 
 [node name="LockIcon" type="Sprite2D" parent="." unique_id=143260505]
 modulate = Color(1, 1, 0, 1)
-scale = Vector2(0.25, 0.25)
-texture = ExtResource("2_12heu")
+scale = Vector2(4, 4)
+texture = ExtResource("3_12heu")
+
+[node name="StaticBody2D" type="StaticBody2D" parent="." unique_id=1738200385]
+collision_layer = 128
+collision_mask = 32
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D" unique_id=396750393]
+scale = Vector2(18, 45)
+shape = SubResource("RectangleShape2D_12heu")

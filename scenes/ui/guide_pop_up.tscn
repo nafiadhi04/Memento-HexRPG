@@ -1,0 +1,194 @@
+[gd_scene format=3 uid="uid://e1ul4to7wfyu"]
+
+[ext_resource type="Script" uid="uid://bkxgtgcjevat7" path="res://scripts/ui/GuidePopUp.cs" id="1_hlsag"]
+[ext_resource type="Theme" uid="uid://cx8x4sn5aoi7p" path="res://resources/settings/defaulttheme.tres" id="2_i0sq4"]
+
+[node name="GuidePopUp" type="CanvasLayer" unique_id=1515397462 node_paths=PackedStringArray("TitleLabel", "PageContainer", "PageIndicator", "PrevButton", "NextButton", "CloseButton")]
+layer = 100
+script = ExtResource("1_hlsag")
+TitleLabel = NodePath("PanelContainer/VBoxContainer/TitleLabel")
+PageContainer = NodePath("PanelContainer/VBoxContainer/PageContainer")
+PageIndicator = NodePath("PanelContainer/HBoxContainer/PageIndicator")
+PrevButton = NodePath("PanelContainer/HBoxContainer/PrevButton")
+NextButton = NodePath("PanelContainer/HBoxContainer/NextButton")
+CloseButton = NodePath("PanelContainer/closeButton")
+
+[node name="PanelContainer" type="PanelContainer" parent="." unique_id=786525012]
+z_index = 100
+custom_minimum_size = Vector2(500, 250)
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -20.0
+offset_top = -20.0
+offset_right = 20.0
+offset_bottom = 20.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_i0sq4")
+
+[node name="VBoxContainer" type="VBoxContainer" parent="PanelContainer" unique_id=689974477]
+layout_mode = 2
+
+[node name="TitleLabel" type="Label" parent="PanelContainer/VBoxContainer" unique_id=416585379]
+layout_mode = 2
+text = "GUIDE"
+horizontal_alignment = 1
+
+[node name="PageContainer" type="Control" parent="PanelContainer/VBoxContainer" unique_id=204957655]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 2
+
+[node name="Page1_Control" type="Control" parent="PanelContainer/VBoxContainer/PageContainer" unique_id=425943675]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="PanelContainer/VBoxContainer/PageContainer/Page1_Control" unique_id=1094097473]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "• Click Tile → Move
+• Click Enemy → Lock Target
+• TAB → Toggle Combat Log
+• Type Command → Execute Action
+• ESC → Pause Menu
+"
+
+[node name="Page2_Combat" type="Control" parent="PanelContainer/VBoxContainer/PageContainer" unique_id=1672484722]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="RichTextLabel" type="RichTextLabel" parent="PanelContainer/VBoxContainer/PageContainer/Page2_Combat" unique_id=868028762]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "Turn Based System
+
+PLAYER TURN:
+- Move
+- Attack
+- Use Skill
+- Use Potion
+
+ENEMY TURN:
+- AI Behavior (Aggressive / Kiting)
+- Reaction Prompt (Parry / Dodge)
+
+Typing Reaction Correctly = Block Damage
+Speed Bonus = Extra Score
+"
+
+[node name="Page3_Command" type="Control" parent="PanelContainer/VBoxContainer/PageContainer" unique_id=337047711]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="RichTextLabel2" type="RichTextLabel" parent="PanelContainer/VBoxContainer/PageContainer/Page3_Command" unique_id=1826066323]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "WARRIOR (150/8/R1)     ARCHER (80/10/R6)
+SLASH                  SHOOT
+5:PUNCTURE             5:SNIPE UP
+15:SWORDS DANCE        15:THIRD ARROW
+
+MAGE (70/15/R4)        HEAL
+BURNS                  HP+10 / AP+5
+5:FIREBALLS            Drop: Random
+15:PSYCHO BLAST        Use: Player Turn
+
+RULES: Typo -2 | Success +3 | Turn +2
+"
+
+[node name="Page4_Lose" type="Control" parent="PanelContainer/VBoxContainer/PageContainer" unique_id=833027629]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="RichTextLabel3" type="RichTextLabel" parent="PanelContainer/VBoxContainer/PageContainer/Page4_Lose" unique_id=321257367]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "YOU LOSE IF:
+
+HP/AP reaches 0
+
+Tip:
+Use potion wisely.
+Watch enemy reaction prompts.
+"
+
+[node name="Page5_Win" type="Control" parent="PanelContainer/VBoxContainer/PageContainer" unique_id=1598433625]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+grow_horizontal = 2
+
+[node name="RichTextLabel4" type="RichTextLabel" parent="PanelContainer/VBoxContainer/PageContainer/Page5_Win" unique_id=1490870495]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "YOU WIN IF:
+
+• All enemies defeated
+• Area cleared
+
+Clear all enemies in an area to unlock next area
+"
+
+[node name="HBoxContainer" type="HBoxContainer" parent="PanelContainer" unique_id=137071628]
+layout_mode = 2
+theme = ExtResource("2_i0sq4")
+
+[node name="PrevButton" type="Button" parent="PanelContainer/HBoxContainer" unique_id=1473104657]
+custom_minimum_size = Vector2(50, 20)
+layout_mode = 2
+size_flags_vertical = 8
+text = "Prev"
+
+[node name="PageIndicator" type="Label" parent="PanelContainer/HBoxContainer" unique_id=628220338]
+custom_minimum_size = Vector2(50, 20)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 8
+
+[node name="NextButton" type="Button" parent="PanelContainer/HBoxContainer" unique_id=53042104]
+custom_minimum_size = Vector2(50, 20)
+layout_mode = 2
+size_flags_vertical = 8
+text = "Next"
+
+[node name="closeButton" type="Button" parent="PanelContainer" unique_id=1803274056]
+custom_minimum_size = Vector2(20, 20)
+layout_mode = 2
+size_flags_horizontal = 8
+size_flags_vertical = 0
+text = "X"

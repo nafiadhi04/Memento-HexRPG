@@ -23,6 +23,9 @@ public partial class LockedArea : Node2D
 		{
 			GD.PrintErr($"[LOCKED AREA] Error: Node 'FogParticles' tidak ditemukan di {Name}!");
 		}
+
+		Modulate = new Color(1, 1, 1, 1);
+
 	}
 
 	private void SetupFogVisuals()
@@ -67,9 +70,26 @@ public partial class LockedArea : Node2D
 		GD.Print($"[FOG SETUP] {Name} | VisRect Updated: {_fogParticles.VisibilityRect}");
 	}
 
-	public void Unlock()
+	public async void Unlock()
 	{
 		GD.Print($"[LOCKED AREA] {Name} Unlocked!");
+
+		// Hapus collider dulu supaya player bisa lewat
+		var blocker = GetNodeOrNull<StaticBody2D>("StaticBody2D");
+		blocker?.QueueFree();
+
+		if (_fogParticles != null)
+			_fogParticles.Emitting = false;
+
+		var tween = CreateTween();
+		tween.TweenProperty(this, "modulate:a", 0.0f, 1.2f)
+			 .SetEase(Tween.EaseType.Out)
+			 .SetTrans(Tween.TransitionType.Sine);
+
+		await ToSignal(tween, Tween.SignalName.Finished);
+
 		QueueFree();
 	}
+
+
 }

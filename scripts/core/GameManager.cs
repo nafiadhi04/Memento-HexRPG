@@ -1,5 +1,7 @@
 using Godot;
+using MementoTest.Entities;
 using System;
+using static MementoTest.Core.SaveData;
 
 namespace MementoTest.Core
 {
@@ -120,50 +122,43 @@ namespace MementoTest.Core
 		// Panggil fungsi ini dari PauseMenu saat tombol "Save & Quit" ditekan
 		public void SaveGameplayState()
 		{
-			// 1. Cari Player
-			var player = GetTree().GetFirstNodeInGroup("Player") as MementoTest.Entities.PlayerController;
-
-			// 2. Cari Enemy (Pastikan Enemy kamu masuk dalam Group "Enemy")
-			// Jika belum punya script EnemyController, sesuaikan tipe datanya nanti
-			var enemy = GetTree().GetFirstNodeInGroup("Enemy");
+			var player = GetTree().GetFirstNodeInGroup("Player") as PlayerController;
 
 			if (CurrentSaveData != null)
 			{
-				// --- SIMPAN DATA PLAYER ---
+				// ===== PLAYER =====
 				if (player != null)
 				{
 					CurrentSaveData.CurrentHP = player.CurrentHP;
 					CurrentSaveData.CurrentAP = player.CurrentAP;
-					CurrentSaveData.PlayerPosition = player.GlobalPosition; // Simpan Posisi!
+					CurrentSaveData.PlayerPosition = player.GlobalPosition;
 				}
 
-				// --- SIMPAN DATA ENEMY ---
-				if (enemy != null)
+				// ===== ENEMIES =====
+				var enemies = GetTree().GetNodesInGroup("Enemy");
+				CurrentSaveData.Enemies.Clear();
+
+				foreach (var node in enemies)
 				{
-					// Ambil nilai CurrentHP sebagai Variant
-					Variant enemyHP = enemy.Get("CurrentHP");
-
-					// Cek apakah tipe datanya benar (Int di Godot = 64-bit integer)
-					if (enemyHP.VariantType == Variant.Type.Int)
+					if (node is EnemyController enemyCtrl)
 					{
-						// [PERBAIKAN] Gunakan Casting (int) atau .As<int>()
-						CurrentSaveData.EnemyHP = enemyHP.As<int>();
+						EnemySaveData data = new EnemySaveData
+						{
+							EnemyID = enemyCtrl.Name,
+							Position = enemyCtrl.GlobalPosition,
+							HP = enemyCtrl.CurrentHP,
+							IsDead = enemyCtrl.CurrentHP <= 0
+						};
 
-						CurrentSaveData.IsEnemyDead = (CurrentSaveData.EnemyHP <= 0);
+						CurrentSaveData.Enemies.Add(data);
 					}
 				}
-				else
-				{
-					// Jika tidak ada musuh (misal sudah mati dan hilang dari scene)
-					CurrentSaveData.IsEnemyDead = true;
-					CurrentSaveData.EnemyHP = 0;
-				}
 
-				// Simpan ke disk
 				SaveGame();
-				GD.Print($"[MANAGER] Saved! Pos: {CurrentSaveData.PlayerPosition}, EnemyHP: {CurrentSaveData.EnemyHP}");
+				GD.Print("[MANAGER] Game Saved!");
 			}
 		}
+
 
 		// Hapus file save dari disk
 		public void DeleteSave(int slotIndex)

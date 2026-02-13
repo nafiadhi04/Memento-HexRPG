@@ -33,7 +33,9 @@ namespace MementoTest.UI
 
 
 
-
+		[Export] private PackedScene GuidePopupScene;
+		[Export] private Button GuideButton;
+		private GuidePopUp _guideInstance;
 
 		[ExportGroup("Combat UI")]
 		[Export] public Control CombatPanel;
@@ -49,6 +51,10 @@ namespace MementoTest.UI
 		[Export] public Control ReactionPanel;
 		[Export] public Label ReactionPromptLabel;
 		[Export] public ProgressBar ReactionTimerBar;
+
+		[Export] public Label HpPotionLabel;
+		[Export] public Label ApPotionLabel;
+
 		#endregion
 
 		#region Configuration & State
@@ -95,6 +101,13 @@ namespace MementoTest.UI
 			if (TurnLabel != null)
 				TurnLabel.Visible = false;
 
+			if (GuidePopupScene != null)
+			{
+				_guideInstance = GuidePopupScene.Instantiate<GuidePopUp>();
+				AddChild(_guideInstance);
+				_guideInstance.Visible = false;
+			}
+			GuideButton.Pressed += OnGuideButtonPressed;
 
 
 			ConnectToScoreManager();
@@ -214,6 +227,15 @@ namespace MementoTest.UI
 			// --- 3. VISUAL FEEDBACK (Jika Masih Benar) ---
 			UpdateFeedbackVisuals(input, target);
 		}
+		public void UpdatePotionUI(int hpCount, int apCount)
+		{
+			if (HpPotionLabel != null)
+				HpPotionLabel.Text = $"x{hpCount}";
+
+			if (ApPotionLabel != null)
+				ApPotionLabel.Text = $"x{apCount}";
+		}
+
 
 		private async void ResetInputWithDelay()
 		{
@@ -476,6 +498,9 @@ namespace MementoTest.UI
 		{
 			_isReactionPhase = false;
 			_availableCommands = new HashSet<string>(commands.Select(c => c.ToUpper()));
+			_availableCommands.Add("HEALHP");
+			_availableCommands.Add("HEALAP");
+
 
 
 			_availableCommands.Add("END");
@@ -532,9 +557,11 @@ namespace MementoTest.UI
 		private void ConnectToScoreManager()
 		{
 			if (ScoreManager.Instance == null) return;
-			ScoreManager.Instance.ScoreUpdated += (s) => ScoreLabel.Text = $"SCORE: {s:N0}";
-			ScoreManager.Instance.ComboUpdated += (c) => ComboLabel.Text = $"COMBO: x{c}";
+
+			ScoreManager.Instance.ScoreUpdated += OnScoreUpdated;
+			ScoreManager.Instance.ComboUpdated += OnComboUpdated;
 		}
+
 
 		public void ExitPlayerCommandPhase()
 		{
@@ -549,7 +576,53 @@ namespace MementoTest.UI
 
 			// LogToTerminal("Command phase ended.", Colors.DimGray); // Opsional
 		}
+
+		public override void _ExitTree()
+		{
+			if (ScoreManager.Instance != null)
+			{
+				ScoreManager.Instance.ScoreUpdated -= OnScoreUpdated;
+				ScoreManager.Instance.ComboUpdated -= OnComboUpdated;
+			}
+		}
+		private void OnScoreUpdated(int score)
+		{
+			if (!IsInstanceValid(this)) return;
+			if (ScoreLabel == null || !IsInstanceValid(ScoreLabel)) return;
+
+			ScoreLabel.Text = $"SCORE: {score:N0}";
+		}
+
+		private void OnComboUpdated(int combo)
+		{
+			if (!IsInstanceValid(this)) return;
+			if (ComboLabel == null || !IsInstanceValid(ComboLabel)) return;
+
+			ComboLabel.Text = $"COMBO: x{combo}";
+		}
+
+		private void OnGuidePressed()
+		{
+			if (_guideInstance == null)
+			{
+				_guideInstance = GuidePopupScene.Instantiate<GuidePopUp>();
+				GetTree().Root.AddChild(_guideInstance);
+			}
+
+			_guideInstance.Open();
+		}
+
+		private void OnGuideButtonPressed()
+		{
+			if (_guideInstance != null)
+				_guideInstance.Open();
+		}
+
+
+
+
+
 		#endregion
 	}
-	
+
 }
